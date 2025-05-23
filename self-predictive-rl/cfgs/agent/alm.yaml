@@ -1,0 +1,91 @@
+#environment
+time_limit: 60
+time_no_action: 5
+frame_skip: 6
+frame_stack: 1
+goal_threshold: 0.25
+init_altitude: 1.
+altitude_limits: [0.25, 2.]
+target_pos: null
+target_dim: [0.05, 0.02]
+zone_steps: 0
+is_pixels: false
+is_vector: true
+add_target_pos: false
+add_target_dist: false
+add_target_dim: false
+add_action: false
+uav_data: ['imu', 'gyro', 'gps', 'gps_vel', 'target_sensors']
+
+#common
+agent: 'alm'
+device: 'cuda'
+seed: 1
+
+#benchmark
+benchmark: 'gym-drone'
+id: 'CrazyflieEnvContinuous-v0' # ("HalfCheetah-v2", "Humanoid-v2", "Ant-v2", "Walker2d-v2", "Hopper-v2")
+distraction: 0
+scale: 0.1
+
+#data 
+num_train_steps: 450000
+explore_steps: 2048
+max_episode_steps: 9000
+env_buffer_size: 100000 # humanoid-v2 will be automatically changed to 1e6
+batch_size: 512
+seq_len: 1
+
+#key hparams
+algo: td3 # {null, td3, alm-3, alm-1, alm-no-model, alm-no-model-ours}
+aux: rkl # {rkl, l2, none}
+aux_optim: ema # {ema, detach, online, none}
+aux_coef: 1.0
+disable_svg: true
+disable_reward: true
+freeze_critic: true
+online_encoder_actorcritic: true
+
+#learning 
+gamma: 0.99
+tau: 0.005
+target_update_interval: 1
+lambda_cost: 0.1
+lr: {'encoder' : 0.0001, 'model' : 0.0001, 'reward' : 0.0001, 'critic' : 0.0001, 'actor' : 0.0001}
+max_grad_norm: 100.0
+
+#exploration
+expl_start: 1.0
+expl_end: 0.1
+expl_duration: 100000
+stddev_clip: 0.3
+
+#hidden_dims and layers
+latent_dims: 50
+hidden_dims: 512
+model_hidden_dims: 1024
+
+#bias evaluation
+eval_bias: False 
+eval_bias_interval: 500
+
+#evaluation
+eval_episode_interval: 450000
+num_eval_episodes: 10
+num_eval_steps: 60
+test_episode: -1
+test_run_name: "debug"
+
+#logging
+debug: false
+save_dir: "logs"
+log_interval: 500
+
+#saving
+save_snapshot: True
+save_snapshot_interval: 9000
+
+hydra:  
+  output_subdir: null  
+  run:  
+    dir: .
