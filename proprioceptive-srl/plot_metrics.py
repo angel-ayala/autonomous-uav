@@ -13,14 +13,15 @@ from pathlib import Path
 from tqdm import tqdm
 import threading
 
-from sb3_srl.plot_utils import draw_metric
-from sb3_srl.plot_utils import plot_metric
-from sb3_srl.plot_utils import plot_aggregated_metrics
-from sb3_srl.plot_utils import plot_performance_profile
-from sb3_srl.plot_utils import plot_probability_improvement
-from sb3_srl.plot_utils import plot_sample_efficiency
-from sb3_srl.plot_utils import set_color_palette
 from webots_drone.data import ExperimentData
+
+from plot_utils import draw_metric
+from plot_utils import plot_metric
+from plot_utils import plot_aggregated_metrics
+from plot_utils import plot_performance_profile
+from plot_utils import plot_probability_improvement
+from plot_utils import plot_sample_efficiency
+from plot_utils import set_color_palette
 
 
 def append_list2dict(dict_elm, key, value):

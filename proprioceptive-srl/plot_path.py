@@ -10,10 +10,11 @@ import numpy as np
 from pathlib import Path
 import matplotlib.pyplot as plt
 from webots_drone.data import ExperimentData
-from sb3_srl.plot_utils import plot_trajectory
-from sb3_srl.plot_utils import draw_trajectory
-from sb3_srl.plot_utils import plot_metric
-from sb3_srl.plot_utils import draw_metric
+
+from plot_utils import plot_trajectory
+from plot_utils import draw_trajectory
+from plot_utils import plot_metric
+from plot_utils import draw_metric
 
 
 def create_output_path(exp_folder, out_name, exist_ok=False):
