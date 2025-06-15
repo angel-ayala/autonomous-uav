@@ -527,7 +527,7 @@ def evaluate_agent(agent_select_action: Callable,
     return ep_reward, ep_steps, elapsed_time
 
 
-def iterate_agents_evaluation(env, algorithm, args):
+def iterate_agents_evaluation(env, algorithm, args, log_args=None):
     logs_path = Path(args.logspath)
     agent_models = natsorted(logs_path.glob('agents/rl_model_*'), key=str)
 
@@ -561,11 +561,21 @@ def iterate_agents_evaluation(env, algorithm, args):
         # Target position for evaluation
         targets_pos = args2target(env, args.target_pos)
         # Log eval data
+        if 'store_path' not in log_args.keys():
+            out_path = logs_path / 'eval'
+        else:
+            out_path = log_args['store_path']
+        out_path.mkdir(exist_ok=True)
+        if log_args is None:
+            log_args = {'n_sensors': 4,
+                        'reset_keywords': ['target_pos']}
+        else:
+            log_args['reset_keywords'] = ['target_pos']
+
         ep_name = agent_path.stem.replace('rl_model_', '')
-        csv_path = logs_path / 'eval' / f"history_{ep_name}.csv"
-        csv_path.parent.mkdir(exist_ok=True)
-        monitor_env = DroneEnvMonitor(env, store_path=csv_path, n_sensors=4,
-                                      reset_keywords=['target_pos'])
+        log_args['store_path'] = out_path / f"history_{ep_name}.csv"
+        # Instantiate Monitor
+        monitor_env = DroneEnvMonitor(env, **log_args)
         monitor_env.init_store()
         monitor_env.set_eval()
         monitor_env.new_episode(log_ep)
