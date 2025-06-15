@@ -111,7 +111,7 @@ def filter_metrics(metrics, key_lambda):
 base_path = Path('/home/angel/desarrollo/sb3-srl/logs_cf_vector_paper')
 # base_path = Path('/home/angel/desarrollo/sb3-srl/logs_cf_pixel_paper')
 # base_path = Path('/home/angel/desarrollo/sb3-srl/logs_cf_vector_alm')
-ni_et_al = 'TD3 (Ni et al. 2024)'
+ni_et_al = 'TD3-Ni'
 proposal_td3_key = 'TD3-ISPR (ours)'
 proposal_sac_key = 'SAC-ISPR (ours)'
 exp_paths = []
@@ -170,7 +170,7 @@ pbar.close()
 out_path = base_path / 'assets'
 out_path = base_path / 'assets_poster'
 
-# out_path = None
+out_path = None
 if out_path is not None and not out_path.exists():
     out_path.mkdir()
 
