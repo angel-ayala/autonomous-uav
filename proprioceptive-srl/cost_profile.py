@@ -23,14 +23,12 @@ from stable_baselines3.sac.policies import CnnPolicy as SACCnnPolicy
 from stable_baselines3.sac.policies import MultiInputPolicy as SACMultiInputPolicy
 from sb3_srl.sac_srl import SRLSACPolicy, SRLSAC
 
-
 from utils import (
     args2ae_config,
     args2env_params,
     instance_env,
     load_json_dict
     )
-
 
 
 def parse_args():
@@ -62,14 +60,12 @@ def profile_model(model, input_shape, device, action_shape=None):
 
 
 if __name__ == '__main__':
+    # Load arguments
     eval_args = parse_args()
     is_sac = 'sac' in str(eval_args.logspath).lower()
     saved_args = load_json_dict(eval_args.logspath + '/arguments.json')
     env_params = args2env_params(saved_args)
 
-    # Environment
-    # environment_name = 'webots_drone:webots_drone/CrazyflieEnvContinuous-v0'
-    # env = instance_env(environment_name, env_params, seed=0)
     # Algorithm
     if saved_args['is_srl']:
         if is_sac:

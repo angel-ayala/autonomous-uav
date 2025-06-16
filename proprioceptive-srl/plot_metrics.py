@@ -108,7 +108,7 @@ def filter_metrics(metrics, key_lambda):
 
 # %% Data reading and preprocessing
 # base_path = Path('/home/angel/desarrollo/uav_navigation/rl_experiments/logs_cf_vector_new')
-base_path = Path('/home/angel/desarrollo/sb3-srl/logs_cf_vector_paper')
+base_path = Path('/home/timevisao/angel/autonomous-uav/proprioceptive-srl/logs_ispr')
 # base_path = Path('/home/angel/desarrollo/sb3-srl/logs_cf_pixel_paper')
 # base_path = Path('/home/angel/desarrollo/sb3-srl/logs_cf_vector_alm')
 ni_et_al = 'TD3-Ni'
@@ -117,12 +117,13 @@ proposal_sac_key = 'SAC-ISPR (ours)'
 exp_paths = []
 # filter
 for p in base_path.iterdir():
-    if 'random' in str(p) or 'assets' in str(p):
+    folder_name = p.name
+    if 'random' in folder_name or 'assets' in folder_name:
         continue
     # if 'sac' in str(p):  # filter SAC
     # if 'td3' in str(p):  # filter TD3
-    if ('spr' in str(p) or 'alm' in str(p)) and not 'ispr' in str(p):  # filter others proposal
-        continue
+    # if ('spr' in folder_name or 'alm' in folder_name) and not 'ispr' in folder_name:  # filter others proposal
+    #     continue
     exp_paths.append(p)
 exp_paths.sort(reverse=False)
 
@@ -168,9 +169,9 @@ pbar.close()
 
 # %% Ensure save data
 out_path = base_path / 'assets'
-out_path = base_path / 'assets_poster'
+# out_path = base_path / 'assets_poster'
 
-out_path = None
+# out_path = None
 if out_path is not None and not out_path.exists():
     out_path.mkdir()
 
@@ -187,19 +188,20 @@ plots = [  # metric_id, y_label, plt_title, is_percent
 ]
 
 # _, plot_metrics = split_metric(nav_metrics)
+
+algos_grp = [ni_et_al, proposal_sac_key, proposal_td3_key]
+algos_grp = [proposal_td3_key, 'TD3-SPR', 'TD3']
+# algos_grp = [proposal_sac_key, 'SAC-SPR', 'SAC']
+
 for metric_id in plots:
     print('Plotting', metric_id[0])
-    out_fig = out_path / f"nav_metric_{metric_id[0]}_proposal.pdf" if out_path is not None else out_path
+    out_fig = out_path / f"nav_metric_{metric_id[0]}_TD3.pdf" if out_path is not None else out_path
     with plot_metric(metric_id[2], metric_id[1], metric_id[-1], figsize=(7,5)) as fig:
         ax = fig.add_subplot(1, 1, 1)
         set_color_palette(ax)
         for i, (label, values) in enumerate(nav_metrics.items()):
-            # if 'SAC' in label or 'et al.' in label:
-            #     continue
-            # if 'TD3' in label or 'et al.' in label:
-            #     continue
-            # if 'ISPR' not in label and 'et al.' not in label:
-            #     continue
+            if label not in algos_grp:
+                continue
             eps = np.asarray(episodes[label][0]) + 1
             plot_values = np.vstack([v[metric_id[0]].values for v in values])
             draw_metric(ax, label, eps, plot_values, metric_id[-1])
@@ -241,9 +243,9 @@ fig.show()
 # IQM, Optimality Gap, Median, Mean
 print('Plotting aggregated reward')
 algos = list(rewards_tpos.keys())
-alg_norm = 'SAC'
+alg_norm = 'TD3'
+# alg_norm = 'SAC'
 # alg_norm = ni_et_al
-# alg_norm = 'TD3'
 
 metric2plot = ['Median', 'IQM', 'Mean', 'Optimality Gap']
 fig, axes = plot_aggregated_metrics(algos, rewards_tpos, alg_norm, metric2plot)
@@ -332,7 +334,7 @@ print('Plotting Performance profile')
 #     fig.savefig(out_path / "rliable_performance_profile.pdf", bbox_inches='tight')
 # fig.show()
 
-algos = ['TD3-ISPR (ours)',
+algos = [proposal_td3_key,
          'TD3-SPR',
          'TD3']
 fig, axes = plot_performance_profile(algos, rewards_tpos, alg_norm)
@@ -340,7 +342,7 @@ if out_path is not None:
     fig.savefig(out_path / "rliable_performance_profile_TD3.pdf", bbox_inches='tight')
 fig.show()
 
-algos = ['SAC-ISPR (ours)',
+algos = [proposal_sac_key,
          'SAC-SPR',
          'SAC']
 fig, axes = plot_performance_profile(algos, rewards_tpos, alg_norm)
@@ -348,9 +350,9 @@ if out_path is not None:
     fig.savefig(out_path / "rliable_performance_profile_SAC.pdf", bbox_inches='tight')
 fig.show()
 
-algos = ['TD3 (Ni et al. 2024)',
-         'SAC-ISPR (ours)',
-         'TD3-ISPR (ours)']
+algos = [ni_et_al,
+         proposal_sac_key,
+         proposal_td3_key]
 fig, axes = plot_performance_profile(algos, rewards_tpos, alg_norm)
 if out_path is not None:
     fig.savefig(out_path / "rliable_performance_profile_proposal.pdf", bbox_inches='tight')
@@ -365,7 +367,7 @@ print('Plotting Sample efficiency curve')
 #     fig.savefig(out_path / "rliable_efficiency_curve.pdf", bbox_inches='tight')
 # fig.show()
 
-algos = ['TD3-ISPR (ours)',
+algos = [proposal_td3_key,
          'TD3-SPR',
          'TD3']
 fig, ax = plot_sample_efficiency(algos, rewards_tpos, alg_norm, np.asarray(episodes[alg_norm][0]))
@@ -373,7 +375,7 @@ if out_path is not None:
     fig.savefig(out_path / "rliable_efficiency_curve_TD3.pdf", bbox_inches='tight')
 fig.show()
 
-algos = ['SAC-ISPR (ours)',
+algos = [proposal_sac_key,
          'SAC-SPR',
          'SAC']
 fig, ax = plot_sample_efficiency(algos, rewards_tpos, alg_norm, np.asarray(episodes[alg_norm][0]))
@@ -381,9 +383,9 @@ if out_path is not None:
     fig.savefig(out_path / "rliable_efficiency_curve_SAC.pdf", bbox_inches='tight')
 fig.show()
 
-algos = ['TD3 (Ni et al. 2024)',
-         'SAC-ISPR (ours)',
-         'TD3-ISPR (ours)']
+algos = [ni_et_al,
+         proposal_sac_key,
+         proposal_td3_key]
 fig, ax = plot_sample_efficiency(algos, rewards_tpos, alg_norm, np.asarray(episodes[alg_norm][0]))
 if out_path is not None:
     fig.savefig(out_path / "rliable_efficiency_curve_proposal.pdf", bbox_inches='tight')

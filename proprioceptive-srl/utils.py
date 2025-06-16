@@ -210,7 +210,7 @@ def args2env_params(args):
 
 
 def instance_env(name='webots_drone:webots_drone/DroneEnvDiscrete-v0',
-                 env_params={}, seed=666):
+                 env_params={}, seed=666, extra_params=None):
     _env_params = {
         'time_limit_seconds': env_params.get('time_limit', 60),
         'max_no_action_seconds': env_params.get('time_no_action', 5),
@@ -222,6 +222,8 @@ def instance_env(name='webots_drone:webots_drone/DroneEnvDiscrete-v0',
         'target_dim': env_params.get('target_dim', [.05, .02]),
         'is_pixels': env_params.get('is_pixels', False),
         }
+    if extra_params:
+        _env_params.update(extra_params)
 
     if isinstance(_env_params['target_pos'], list):
         if len(_env_params['target_pos']) > 1:
@@ -414,6 +416,10 @@ class DroneExperimentCallback(CheckpointCallback):
         self.save_freq = float('inf')
 
     def _on_training_start(self) -> None:
+        self.exp_args['action_shape'] = self.env.action_space.shape
+        self.exp_args['action_high'] = self.env.action_space.high
+        self.exp_args['action_low'] = self.env.action_space.high
+        self.exp_args['obs_shape'] = self.env.observation_space.shape
         save_dict_json(self.exp_args, self.out_path)
         self.env.init_store()
 
@@ -561,10 +567,10 @@ def iterate_agents_evaluation(env, algorithm, args, log_args=None):
         # Target position for evaluation
         targets_pos = args2target(env, args.target_pos)
         # Log eval data
-        if 'store_path' not in log_args.keys():
+        if log_args is None or 'store_path' not in log_args.keys():
             out_path = logs_path / 'eval'
         else:
-            out_path = log_args['store_path']
+            out_path = Path(log_args['store_path'])
         out_path.mkdir(exist_ok=True)
         if log_args is None:
             log_args = {'n_sensors': 4,

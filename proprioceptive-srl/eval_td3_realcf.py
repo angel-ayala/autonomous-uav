@@ -58,12 +58,11 @@ if __name__ == '__main__':
 
     # Environment
     environment_name = 'webots_drone:webots_drone/RealCrazyflieEnvContinuous-v0'
-    env_params['agent_id'] = 8
-    env_params['timestep'] = 32
+    extra_params = {'agent_id': 8, 'timestep': 32}
 
     try:
-        # Environment
-        env = instance_env(environment_name, env_params, seed=eval_args.seed)
+        # Create the environment
+        env = instance_env(environment_name, env_params, seed=eval_args.seed, extra_params=extra_params)
 
         # Algorithm
         if saved_args['is_srl']:
@@ -85,8 +84,7 @@ if __name__ == '__main__':
                     policy = MultiInputPolicy
 
         # Evaluation loop
-        eval_logpath = eval_args.logspath / 'eval_real'
-        log_args = {'store_path': eval_args.logspath / 'eval_real',
+        log_args = {'store_path': eval_args.logspath + '/eval_real',
                     'n_sensors': 0,
                     'extra_info': False,
                     'other_cols': ['battery_volts']}
