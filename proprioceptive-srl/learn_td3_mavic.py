@@ -71,7 +71,7 @@ if __name__ == '__main__':
     env_params = args2env_params(args)
 
     # Environment
-    environment_name = 'webots_drone:webots_drone/DroneEnvContinuous-v0'
+    environment_name = 'webots_drone:webots_drone/MavicEnvContinuous-v0'
     env = instance_env(environment_name, env_params, seed=args.seed)
 
     if args.is_srl:
@@ -97,7 +97,7 @@ if __name__ == '__main__':
     outpath = f"{log_path}/{exp_name}_{run_id+1}"
 
     # Experiment data log
-    env = DroneEnvMonitor(env, store_path=f"{outpath}/history_training.csv", n_sensors=4)
+    env = DroneEnvMonitor(env, store_path=f"{outpath}/history_training.csv", n_sensors=9)
 
     # Save a checkpoint every N steps
     agents_path = f"{outpath}/agents"
