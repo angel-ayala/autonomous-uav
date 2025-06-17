@@ -65,10 +65,37 @@ def parse_crazyflie_env_args(parser):
                          help='Minimum height distance to begin the mission.')
     arg_env.add_argument("--altitude-limits", type=list_of_float,
                          default=[0.25, 2.], help='Vertical flight limits.')
-    arg_env.add_argument("--target-pos", type=list_of_targets, default=None,
-                         help='Cuadrant number for target position.')
     arg_env.add_argument("--target-dim", type=list_of_float, default=[0.05, 0.02],
                          help="Target's dimension size.")
+    parse_common_env_args(arg_env)
+    return arg_env
+
+
+def parse_mavic_env_args(parser):
+    arg_env = parser.add_argument_group('Environment')
+    arg_env.add_argument("--time-limit", type=int, default=600,  # 10m
+                         help='Max time (seconds) of the mission.')
+    arg_env.add_argument("--time-no-action", type=int, default=5,
+                         help='Max time (seconds) with no movement.')
+    arg_env.add_argument("--frame-skip", type=int, default=25,  # 200ms
+                         help='Number of simulation steps for a RL step')
+    arg_env.add_argument("--frame-stack", type=int, default=1,
+                         help='Number of RL step to stack as observation.')
+    arg_env.add_argument("--goal-threshold", type=float, default=5.,
+                         help='Minimum distance from the target.')
+    arg_env.add_argument("--init-altitude", type=float, default=25.,
+                         help='Minimum height distance to begin the mission.')
+    arg_env.add_argument("--altitude-limits", type=list_of_float,
+                         default=[11., 75.], help='Vertical flight limits.')
+    arg_env.add_argument("--target-dim", type=list_of_float, default=[7., 3.5],
+                         help="Target's dimension size.")
+    parse_common_env_args(arg_env)
+    return arg_env
+
+
+def parse_common_env_args(arg_env):
+    arg_env.add_argument("--target-pos", type=int, default=None,
+                         help='Cuadrant number for target position.')
     arg_env.add_argument("--zone-steps", type=int, default=0,
                          help='Max number on target area to end the episode with found target.')
     arg_env.add_argument("--is-pixels", action='store_true',
@@ -315,14 +342,14 @@ def args2ae_config(args, env_params):
     return model_name, model_params
 
 
-def args2logpath(args, algo):
+def args2logpath(args, algo, env_uav='cf'):
     if args.logspath is None:
         if args.is_pixels and args.is_vector:
             path_prefix = 'multi'
         else:
             path_prefix = 'pixel' if args.is_pixels else 'vector'
         # Summary folder
-        outfolder = f"logs_cf_{path_prefix}"
+        outfolder = f"logs_{env_uav}_{path_prefix}"
     else:
         outfolder = args.logspath
 
