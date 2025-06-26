@@ -96,8 +96,6 @@ def parse_mavic_env_args(parser):
 def parse_common_env_args(arg_env):
     arg_env.add_argument("--target-pos", type=int, default=None,
                          help='Cuadrant number for target position.')
-    arg_env.add_argument("--zone-steps", type=int, default=0,
-                         help='Max number on target area to end the episode with found target.')
     arg_env.add_argument("--is-pixels", action='store_true',
                          help='Whether if reconstruct an image-based observation.')
     arg_env.add_argument("--is-vector", action='store_true',
@@ -387,6 +385,8 @@ def args2target(env, arg_tpos):
     target_pos = arg_tpos
     if arg_tpos is None:
         target_pos = list(range(len(env.quadrants)))
+    elif isinstance(arg_tpos, int):
+        target_pos = [arg_tpos]
     elif 'sample' in arg_tpos:
         target_pos = np.random.choice(range(len(env.quadrants)),
                                       int(target_pos.replace('sample-', '')),
