@@ -53,7 +53,6 @@ def parse_agent_args(parser):
 def parse_args():
     # Argument parser
     parser = argparse.ArgumentParser()
-
     parse_mavic_env_args(parser)
     parse_agent_args(parser)
     parse_memory_args(parser)

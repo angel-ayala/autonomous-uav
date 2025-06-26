@@ -105,15 +105,34 @@ if __name__ == '__main__':
     out_path = base_path / 'assets' / 'plot_trajectories'
     if out_path is not None and not out_path.exists():
         out_path.mkdir(parents=True)
+    # %% Read proposal real_world data
+    base_path = Path('/home/angel/desarrollo/autonomous-uav/proprioceptive-srl/best_agents_realcf')
+    exp_list = []
+    exp_paths = [
+        'sac_4',
+        'sac-ispr-joint_1',
+        'td3_5',
+        # 'td3-ispr-joint_5',
+        ]
+
+    for epath in exp_paths:
+        exp_data = ExperimentData(base_path / epath, eval_regex=r"eval_real/history_*.csv")
+        exp_list.append(exp_data)
+
+    out_path = base_path / 'assets_real' / 'plot_trajectories'
+    if out_path is not None and not out_path.exists():
+        out_path.mkdir(parents=True)
     # %% Plot trajectories
     phase = 'eval'
     episode = 49
     iteration = 160
+    episode = -1
+    iteration = 0
 
     # Create figure and axis
     for _data in exp_list:
         fig = plt.figure(layout='constrained', figsize=(9, 5))
-        # fig.suptitle(f"{_data.alg_name} trajectory in episode {episode + 1}", fontsize='xx-large')
+        fig.suptitle(f"{_data.alg_name} trajectory in episode {episode + 1}", fontsize='xx-large')
         axes = plot_trajectory(fig, _data, phase, episode, iteration)
         if out_path is not None:
             fig_name = f"{_data.alg_name}_{phase}_ep_{episode+1:03d}_iter_{iteration+1:03d}.pdf"
@@ -132,7 +151,7 @@ if __name__ == '__main__':
     ]
 
     # variables
-    metric_id = plots[0]
+    metric_id = plots[1]
     metric_key = metric_id[0]
     alg_metrics = {}
     alg_episodes = {}

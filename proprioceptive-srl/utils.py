@@ -598,6 +598,8 @@ def iterate_agents_evaluation(env, algorithm, args, log_args=None):
             out_path = logs_path / 'eval'
         else:
             out_path = Path(log_args['store_path'])
+            if not out_path.is_dir():
+                out_path = out_path.parent
         out_path.mkdir(exist_ok=True)
         if log_args is None:
             log_args = {'n_sensors': 4,
