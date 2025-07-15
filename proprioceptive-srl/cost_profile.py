@@ -186,7 +186,7 @@ if __name__ == '__main__':
         print("  - Eval cost:    ",
               f" {flops_str} flops, {params_str} params ({model.device})")
         if eval_args.with_model:
-            print("  - Model:", encoder)
+            print("  - Model:", decoder)
 
     print()
     print("="*60)

@@ -384,11 +384,11 @@ def args2logpath(args, algo, env_uav='cf'):
 def args2target(env, arg_tpos):
     target_pos = arg_tpos
     if arg_tpos is None:
-        target_pos = list(range(len(env.quadrants)))
+        target_pos = list(range(len(env.unwrapped.quadrants)))
     elif isinstance(arg_tpos, int):
         target_pos = [arg_tpos]
     elif 'sample' in arg_tpos:
-        target_pos = np.random.choice(range(len(env.quadrants)),
+        target_pos = np.random.choice(range(len(env.unwrapped.quadrants)),
                                       int(target_pos.replace('sample-', '')),
                                       replace=False)
     elif arg_tpos == 'random':
@@ -444,8 +444,9 @@ class DroneExperimentCallback(CheckpointCallback):
 
     def _on_training_start(self) -> None:
         self.exp_args['action_shape'] = self.env.action_space.shape
-        self.exp_args['action_high'] = self.env.action_space.high
-        self.exp_args['action_low'] = self.env.action_space.high
+        if isinstance(self.env.action_space, gym.spaces.Box):
+            self.exp_args['action_high'] = self.env.action_space.high
+            self.exp_args['action_low'] = self.env.action_space.low
         self.exp_args['obs_shape'] = self.env.observation_space.shape
         save_dict_json(self.exp_args, self.out_path)
         self.env.init_store()
