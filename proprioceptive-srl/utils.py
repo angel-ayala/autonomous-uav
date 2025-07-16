@@ -111,6 +111,8 @@ def parse_common_env_args(arg_env):
     arg_env.add_argument("--uav-data", type=uav_data_list, default=UAV_DATA,
                          help='Select the UAV sensor data as state, available'
                          ' options are: imu, gyro, gps, gps_vel, north, dist_sensors')
+    arg_env.add_argument("--normalized-obs", action='store_true',
+                         help='Whether if use a normalized observation [-1, 1].')
     return arg_env
 
 
@@ -176,8 +178,8 @@ def parse_srl_args(parser):
                          help='Whether if use the InfoNCE SimpleSPR Multimodal version model.')
     arg_srl.add_argument("--model-proprio", action='store_true',
                          help='Whether if use the Proprioceptive version model.')
-    # arg_srl.add_argument("--model-vector-difference", action='store_true',
-    #                      help='Whether if use the VectorDifference reconstruction model.')
+    arg_srl.add_argument("--use-stochastic", action='store_true',
+                         help='Whether if use the Stochastice version model.')
     return arg_srl
 
 
@@ -228,7 +230,7 @@ def args2env_params(args):
         'target_dim2obs': _args.get('add_target_dim', False),
         'action2obs': _args.get('add_action', False),
         'uav_data': _args.get('uav_data', UAV_DATA),
-        'norm_obs': True
+        'norm_obs': _args.get('normalized_obs', False),
         }
     env_params['is_multimodal'] = env_params['is_pixels'] and env_params['is_vector']
     return env_params
@@ -256,7 +258,7 @@ def instance_env(name='webots_drone:webots_drone/DroneEnvDiscrete-v0',
         _env_params['target_pos'] = env_params['target_pos'][0]
     # Create the environment
     env = gym.make(name, **_env_params)
-    env.seed(seed)
+    env.unwrapped.seed(seed)
 
     env_params['state_shape'] = env.observation_space.shape
     if len(env.action_space.shape) == 0:
@@ -336,6 +338,9 @@ def args2ae_config(args, env_params):
         model_name = 'Proprioceptive'
     else:
         raise ValueError('SRL model not recognized...')
+    
+    if _args.get('use_stochastic', False):
+        model_name += 'Stochastic'
 
     return model_name, model_params
 
@@ -443,10 +448,12 @@ class DroneExperimentCallback(CheckpointCallback):
         self.save_freq = float('inf')
 
     def _on_training_start(self) -> None:
-        self.exp_args['action_shape'] = self.env.action_space.shape
         if isinstance(self.env.action_space, gym.spaces.Box):
+            self.exp_args['action_shape'] = self.env.action_space.shape
             self.exp_args['action_high'] = self.env.action_space.high
             self.exp_args['action_low'] = self.env.action_space.low
+        if isinstance(self.env.action_space, gym.spaces.Discrete):
+            self.exp_args['action_shape'] = self.env.action_space.n
         self.exp_args['obs_shape'] = self.env.observation_space.shape
         save_dict_json(self.exp_args, self.out_path)
         self.env.init_store()

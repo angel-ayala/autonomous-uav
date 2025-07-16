@@ -38,7 +38,7 @@ def parse_agent_args(parser):
                            help='Discount factor \gamma.')
     arg_agent.add_argument("--train-freq", type=int, default=4,
                            help='Steps interval for policy optimization.')
-    arg_agent.add_argument("--target-freq", type=int, default=1500,
+    arg_agent.add_argument("--target-freq", type=int, default=10000,
                            help='Steps interval for target updates.')
     arg_agent.add_argument("--exploration-fraction", type=float, default=0.1,
                            help='fraction of entire training period over which the exploration rate is reduced.')
@@ -113,10 +113,6 @@ if __name__ == '__main__':
       out_path=f"{outpath}/arguments.json",
       memory_steps=args.memory_steps
     )
-
-    # Create action noise because TD3 and DDPG use a deterministic policy
-    # n_actions = env.action_space.shape[-1]
-    # action_noise = NormalActionNoise(mean=np.zeros(n_actions), sigma=args.exploration_noise * np.ones(n_actions))
 
     # Create RL model
     model = algo(policy, env,
