@@ -65,7 +65,7 @@ if __name__ == '__main__':
         ae_config = args2ae_config(saved_args, env_params)
         # Policy args
         policy_args = {
-            'net_arch': [256, 256],
+            #'net_arch': [256, 256],
             'ae_config': ae_config,
             'encoder_tau': saved_args['encoder_tau']
             }
