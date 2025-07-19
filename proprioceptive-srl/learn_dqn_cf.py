@@ -6,7 +6,6 @@ Created on Thu Feb  6 12:45:59 2025
 @author: angel
 """
 import argparse
-import numpy as np
 
 from stable_baselines3 import DQN
 from stable_baselines3.dqn.policies import DQNPolicy, CnnPolicy, MultiInputPolicy

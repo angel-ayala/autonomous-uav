@@ -179,7 +179,7 @@ def parse_srl_args(parser):
     arg_srl.add_argument("--model-proprio", action='store_true',
                          help='Whether if use the Proprioceptive version model.')
     arg_srl.add_argument("--use-stochastic", action='store_true',
-                         help='Whether if use the Stochastice version model.')
+                         help='Whether if use the Stochastic version model.')
     return arg_srl
 
 
@@ -377,8 +377,8 @@ def args2logpath(args, algo, env_uav='cf'):
         path_suffix += '-intr'
     if args.joint_optimization:
         path_suffix += '-joint'
-    # if args.model_vector_difference:
-    #     path_suffix += '-diff'
+    if args.use_stochastic:
+        path_suffix += '-stch'
     exp_name = f"{algo}{path_suffix}"
 
     latest_run_id = get_latest_run_id(outfolder, exp_name)
