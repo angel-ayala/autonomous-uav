@@ -24,10 +24,13 @@ from plot_utils import plot_sample_efficiency
 from plot_utils import set_color_palette
 
 
-def append_list2dict(dict_elm, key, value):
+def append_list2dict(dict_elm, key, value, multi_items=False):
     if key not in dict_elm.keys():
         dict_elm[key] = []
-    dict_elm[key].append(value)
+    if multi_items:
+        dict_elm[key].extend(value)
+    else:
+        dict_elm[key].append(value)
 
 
 def append_info(exp_data, phase):
@@ -97,43 +100,48 @@ def process_exp_data(exp_data, phase, pbar):
     return exp_data
 
 
-def filter_metrics(metrics, key_lambda):
-    # Split SAC and TD3 results
-    filt_metrics = {}
-    for k, v in metrics.items():
-        if key_lambda(k):
-            filt_metrics[k] = v
-    return filt_metrics
-
-
-# %% Data reading and preprocessing
-# base_path = Path('/home/angel/desarrollo/uav_navigation/rl_experiments/logs_cf_vector_new')
-base_path = Path('/home/timevisao/angel/autonomous-uav/proprioceptive-srl/logs_ispr')
-# base_path = Path('/home/angel/desarrollo/sb3-srl/logs_cf_pixel_paper')
-# base_path = Path('/home/angel/desarrollo/sb3-srl/logs_cf_vector_alm')
-ni_et_al = 'TD3-Ni'
-proposal_td3_key = 'TD3-ISPR (ours)'
-proposal_sac_key = 'SAC-ISPR (ours)'
-exp_paths = []
-# filter
-for p in base_path.iterdir():
-    folder_name = p.name
-    if 'random' in folder_name or 'assets' in folder_name:
-        continue
-    # if 'sac' in str(p):  # filter SAC
-    # if 'td3' in str(p):  # filter TD3
-    # if ('spr' in folder_name or 'alm' in folder_name) and not 'ispr' in folder_name:  # filter others proposal
-    #     continue
-    exp_paths.append(p)
-exp_paths.sort(reverse=False)
+# %% Constant definitions
+# _suffix = ' (ours)'
+# _ksuffix = ''
+# _suffix = ''
+# _ksuffix = ''
+# _suffix = '/TS'
+# _ksuffix = '_ts'
+_suffix = '/TC'
+_ksuffix = '_tc'
 
 phase = 'eval'
 exp_summ = None
+methods = {}
 rewards = {}
-rewards_step = {}
 nav_metrics = {}
 episodes = {}
 rewards_tpos = {}
+
+# %% Data reading and preprocessing
+# base_path = Path('/home/angel/desarrollo/uav_navigation/rl_experiments/logs_cf_vector_new')
+base_path = Path('/home/timevisao/angel/autonomous-uav/proprioceptive-srl/logs_cf_ispr')
+# base_path = Path('/home/angel/desarrollo/autonomous-uav/proprioceptive-srl/logs_sac_ispr')
+base_path = Path('/home/timevisao/angel/autonomous-uav/proprioceptive-srl/logs_cf_tc')
+base_path = Path('/home/timevisao/angel/autonomous-uav/proprioceptive-srl/logs_cf_ts')
+# base_path = Path('/home/angel/desarrollo/sb3-srl/logs_cf_pixel_paper')
+# base_path = Path('/home/angel/desarrollo/sb3-srl/logs_cf_vector_alm')
+
+# filter
+exp_paths = []
+for p in base_path.iterdir():
+    folder_name = p.name
+    if 'random' in folder_name or 'assets' in folder_name or p.is_file():
+        continue
+    # if 'alm' not in folder_name:
+    #     continue
+    # if 'sac' in str(p):  # filter SAC
+    # if 'td3' in str(p):  # filter TD3
+    # if ('spr' in folder_name or 'alm' in folder_name) and not 'ispr' in folder_name:  # filter others proposal
+    # if 'stch' in str(p):  # filter Stochastic encoders
+    #     continue
+    exp_paths.append(p)
+exp_paths.sort(reverse=False)
 
 pbar = tqdm(total=len(exp_paths) * 5, desc="Processing")
 for exp_path in exp_paths:
@@ -153,19 +161,59 @@ for exp_path in exp_paths:
         ep_df = phase_df[phase_df['ep'] != 51]
         ep_df = ep_df[ep_df['ep'] != 5]
         exp_data.history_df = ep_df
-        exp_data.alg_name = ni_et_al
+        exp_data.alg_name = 'TD3-Ni'
+        algo_key = 'ni_et_al'
     else:
         # read normal experiment
         exp_data = ExperimentData(exp_path, eval_regex=r"eval/history_*.csv")
+        algo_key = exp_data.alg_name.lower().replace('-', '_') + _ksuffix
 
-    # proposal results
-    if 'ispr' in exp_path.name: # TD3
-        exp_data.alg_name += ' (ours)'
+    # proposals results
+    exp_data.alg_name += _suffix
+    methods[algo_key] = exp_data.alg_name
+    # set (ours) in label
+    # if 'ispr' in exp_path.name or 'proprio' in exp_path.name or 'rec' in exp_path.name:  # proposal
+    #     exp_data.alg_name += ' (ours)'
+    #     methods[algo_key] = exp_data.alg_name
 
-    # multi-thread processing
-    process_exp_data(exp_data, phase, pbar=pbar)
+    # check if already saved processed data as numpy file
+    algo_data_path = base_path / f"data_{algo_key}_{phase}.npz"
+    if algo_data_path.exists() and algo_data_path.is_file():
+        if exp_data.alg_name in rewards.keys():
+            for i in range(5):
+                pbar.update()
+            continue
+        tmp_data = np.load(algo_data_path, allow_pickle=True)
+        pbar.update()
+        append_list2dict(rewards, exp_data.alg_name, tmp_data['rewards'], multi_items=True)
+        pbar.update()
+        nav_m = [pd.DataFrame(v) for v in tmp_data['nav_metrics']]
+        append_list2dict(nav_metrics, exp_data.alg_name, nav_m, multi_items=True)
+        pbar.update()
+        append_list2dict(episodes, exp_data.alg_name, tmp_data['episodes'], multi_items=True)
+        pbar.update()
+        append_list2dict(rewards_tpos, exp_data.alg_name, tmp_data['rewards_tpos'], multi_items=True)
+        pbar.update()
+    else:
+        # multi-thread processing
+        process_exp_data(exp_data, phase, pbar=pbar)
 pbar.close()
 
+# %% Save processed data
+for k, v in methods.items():
+    if v not in rewards.keys():
+        continue
+    out_npz = base_path / f"data_{k}_{phase}.npz"
+    if out_npz.exists():
+        continue
+    print('Saving', out_npz.name)
+    tmp_dict = {
+        'rewards': rewards[v],
+        'nav_metrics': [m_df.to_dict() for m_df in nav_metrics[v]],
+        'episodes': episodes[v],
+        'rewards_tpos': rewards_tpos[v],
+        }
+    np.savez(out_npz, **tmp_dict)
 
 # %% Ensure save data
 out_path = base_path / 'assets'
@@ -179,35 +227,53 @@ if out_path is not None and not out_path.exists():
 if out_path is not None:
     exp_summ.to_csv(out_path / 'summary.csv', index=False)
 
+
+# %% Define algorithms group
+
+algos_grp = {
+    # 'baseline': ['DQN', 'SAC', 'TD3'],
+    # 'DQN': ['DQN', methods['dqn_rec']],
+    # 'TD3': ['TD3', methods['td3_rec']],
+    # 'SAC': ['SAC'] + [methods[k] for k in ['sac_rec', 'sac_rec_stch']],
+    # 'comparison': [methods[k] for k in ['dqn_rec', 'td3_rec', 'sac_rec']],
+
+    # 'TD3':  [methods[k] for k in ['td3', 'td3_ispr', 'td3_spr']],
+    # 'SAC': ['SAC'] + [methods[k] for k in ['sac', 'sac_ispr', 'sac_spr']],
+    # 'comparison': [methods[k] for k in ['td3_ispr', 'sac_ispr', 'ni_et_al', 'td3_spr']],
+
+    'baseline': [methods[k] for k in ['dqn', 'td3', 'sac' ]],
+    'baseline_tc': [methods[k] for k in ['dqn_tc', 'td3_tc', 'sac_tc' ]],
+    'DQN': [methods[k] for k in ['dqn', 'dqn_tc', 'dqn_ispr']],
+    'TD3': [methods[k] for k in ['td3', 'td3_tc', 'td3_ispr']],
+    'SAC': [methods[k] for k in ['sac', 'sac_tc', 'sac_ispr']],
+    
+    }
+
 # %% Navigation metrics
-plots = [  # metric_id, y_label, plt_title, is_percent
+nav_plots = [  # metric_id, y_label, plt_title, is_percent
     ('SR', 'Success rate', 'Success rate comparison', True),
     ('SPL', 'Success Path Length', 'Success path length comparison', True),
-    ('SSPL', 'Soft Success Path Length', 'Soft success path length comparison', True),
+    # ('SSPL', 'Soft Success Path Length', 'Soft success path length comparison', True),
     ('DTS', 'Distance to success (meters)', 'Distance to success comparison', False)
 ]
 
-# _, plot_metrics = split_metric(nav_metrics)
-
-algos_grp = [ni_et_al, proposal_sac_key, proposal_td3_key]
-algos_grp = [proposal_td3_key, 'TD3-SPR', 'TD3']
-# algos_grp = [proposal_sac_key, 'SAC-SPR', 'SAC']
-
-for metric_id in plots:
-    print('Plotting', metric_id[0])
-    out_fig = out_path / f"nav_metric_{metric_id[0]}_TD3.pdf" if out_path is not None else out_path
-    with plot_metric(metric_id[2], metric_id[1], metric_id[-1], figsize=(7,5)) as fig:
-        ax = fig.add_subplot(1, 1, 1)
-        set_color_palette(ax)
-        for i, (label, values) in enumerate(nav_metrics.items()):
-            if label not in algos_grp:
-                continue
-            eps = np.asarray(episodes[label][0]) + 1
-            plot_values = np.vstack([v[metric_id[0]].values for v in values])
-            draw_metric(ax, label, eps, plot_values, metric_id[-1])
-    if out_fig is not None:
-        fig.savefig(out_fig)
-    fig.show()
+for grp_key, grp in algos_grp.items():
+    for metric_id in nav_plots:
+        print('Plotting', metric_id[0])
+        out_fig = out_path / f"nav_metric_{metric_id[0]}_{grp_key}.pdf" if out_path is not None else out_path
+        with plot_metric(metric_id[2], metric_id[1], metric_id[-1], figsize=(7,5)) as fig:
+            ax = fig.add_subplot(1, 1, 1)
+            set_color_palette(ax)
+            for i, (label, values) in enumerate(nav_metrics.items()):
+                # print(type(values[0]), values[0].shape, metric_id[0])
+                if label not in grp:
+                    continue
+                eps = np.asarray(episodes[label][0]) + 1
+                plot_values = np.vstack([v[metric_id[0]].values for v in values])
+                draw_metric(ax, label, eps, plot_values, metric_id[-1])
+        if out_fig is not None:
+            fig.savefig(out_fig)
+        fig.show()
 
 # %% Reward metrics
 print('Plotting reward curve')
@@ -243,6 +309,9 @@ fig.show()
 # IQM, Optimality Gap, Median, Mean
 print('Plotting aggregated reward')
 algos = list(rewards_tpos.keys())
+# algos = ['DQN', 'SAC', 'TD3'] + ['DQN/TC', 'SAC/TC', 'TD3/TC']
+algos = [methods[k] for k in ['dqn', 'dqn_tc', 'sac', 'sac_tc', 'td3', 'td3_tc']]
+algos = algos_grp['DQN'] + algos_grp['SAC'] + algos_grp['TD3']
 alg_norm = 'TD3'
 # alg_norm = 'SAC'
 # alg_norm = ni_et_al
@@ -254,139 +323,107 @@ if out_path is not None:
     fig.savefig(out_path / "rliable_aggregated_metrics.pdf", bbox_inches='tight', pad_inches=0.1)
 fig.show()
 
-# %% Probability of Improvement
-print('Plotting Probability of Improvement')
-algos = list(rewards_tpos.keys())
-# alg_norm = 'SAC'
-algo_pairs = [
-    # baseline
-    (proposal_td3_key, 'TD3'),
-    ('TD3-SPR',    'TD3'),
-    (ni_et_al,     'TD3'),
-    ]
-fig, axes = plot_probability_improvement(algos, rewards_tpos, alg_norm, algo_pairs)
-if out_path is not None:
-    fig.savefig(out_path / "rliable_probability_improvement_TD3.pdf", bbox_inches='tight')
-fig.show()
-
-algo_pairs = [
-    # baseline
-    (proposal_sac_key, 'SAC'),
-    ('SAC-SPR',  'SAC'),
-    (ni_et_al,   'SAC'),
-    ]
-fig, axes = plot_probability_improvement(algos, rewards_tpos, alg_norm, algo_pairs)
-if out_path is not None:
-    fig.savefig(out_path / "rliable_probability_improvement_SAC.pdf", bbox_inches='tight')
-fig.show()
-
-algo_pairs = [
-    # cross methods
-    (proposal_td3_key,  ni_et_al),
-    (proposal_sac_key,  ni_et_al),
-    (proposal_td3_key,  proposal_sac_key),
-    ('TD3-SPR', 'SAC-SPR'),
-    ('TD3',   'SAC'),
-    ]
-fig, axes = plot_probability_improvement(algos, rewards_tpos, alg_norm, algo_pairs)
-if out_path is not None:
-    fig.savefig(out_path / "rliable_probability_improvement_proposal.pdf", bbox_inches='tight')
-fig.show()
-
-
-# poster
-algo_pairs = [
-    # cross methods
-    (proposal_sac_key, proposal_td3_key),
-    ('SAC', proposal_td3_key),
-    ('SAC', proposal_sac_key),
-    ('TD3', proposal_td3_key),
-    ('TD3', proposal_sac_key),
-    ('TD3',   'SAC'),
-    ]
-fig, axes = plot_probability_improvement(algos, rewards_tpos, alg_norm, algo_pairs)
-if out_path is not None:
-    fig.savefig(out_path / "rliable_probability_improvement.pdf", bbox_inches='tight')
-fig.show()
-
-# algo_pairs = [
-#     # cross methods
-#     ('SPR',   'TD3-SPR'),
-#     ('SPR',   proposal_td3_key),
-#     # baseline
-#     (proposal_td3_key,   'TD3'),
-#     ('TD3-SPR',   'TD3'),
-#     ('SPR',   'TD3'),
-#     ]
-# fig, axes = plot_probability_improvement(algos, rewards_tpos, alg_norm, algo_pairs)
-# if out_path is not None:
-#     fig.savefig(out_path / "rliable_probability_improvement.pdf", bbox_inches='tight')
-# fig.show()
-
-
-
 # %% Performance profile
 print('Plotting Performance profile')
-# alg_norm = 'SAC'
-# algos = list(rewards_tpos.keys())
-# fig, axes = plot_performance_profile(algos, rewards_tpos, alg_norm)
-# if out_path is not None:
-#     fig.savefig(out_path / "rliable_performance_profile.pdf", bbox_inches='tight')
-# fig.show()
 
-algos = [proposal_td3_key,
-         'TD3-SPR',
-         'TD3']
-fig, axes = plot_performance_profile(algos, rewards_tpos, alg_norm)
-if out_path is not None:
-    fig.savefig(out_path / "rliable_performance_profile_TD3.pdf", bbox_inches='tight')
-fig.show()
-
-algos = [proposal_sac_key,
-         'SAC-SPR',
-         'SAC']
-fig, axes = plot_performance_profile(algos, rewards_tpos, alg_norm)
-if out_path is not None:
-    fig.savefig(out_path / "rliable_performance_profile_SAC.pdf", bbox_inches='tight')
-fig.show()
-
-algos = [ni_et_al,
-         proposal_sac_key,
-         proposal_td3_key]
-fig, axes = plot_performance_profile(algos, rewards_tpos, alg_norm)
-if out_path is not None:
-    fig.savefig(out_path / "rliable_performance_profile_proposal.pdf", bbox_inches='tight')
-fig.show()
+for grp_key, grp in algos_grp.items():
+    print('Processing', grp_key)
+    fig, axes = plot_performance_profile(grp, rewards_tpos, alg_norm)
+    if out_path is not None:
+        fig.savefig(out_path / f"rliable_performance_profile_{grp_key}.pdf", bbox_inches='tight')
+    fig.show()
 
 # %% Sample efficiency curve
 print('Plotting Sample efficiency curve')
-# algos = list(rewards_tpos.keys())
-# alg_norm = 'SAC'
-# fig, ax = plot_sample_efficiency(algos, rewards_tpos, alg_norm, np.asarray(episodes[alg_norm][0]))
-# if out_path is not None:
-#     fig.savefig(out_path / "rliable_efficiency_curve.pdf", bbox_inches='tight')
-# fig.show()
 
-algos = [proposal_td3_key,
-         'TD3-SPR',
-         'TD3']
-fig, ax = plot_sample_efficiency(algos, rewards_tpos, alg_norm, np.asarray(episodes[alg_norm][0]))
-if out_path is not None:
-    fig.savefig(out_path / "rliable_efficiency_curve_TD3.pdf", bbox_inches='tight')
-fig.show()
+for grp_key, grp in algos_grp.items():
+    fig, ax = plot_sample_efficiency(grp, rewards_tpos, alg_norm, np.asarray(episodes[alg_norm][0]))
+    if out_path is not None:
+        fig.savefig(out_path / f"rliable_efficiency_curve_{grp_key}.pdf", bbox_inches='tight')
+    fig.show()
 
-algos = [proposal_sac_key,
-         'SAC-SPR',
-         'SAC']
-fig, ax = plot_sample_efficiency(algos, rewards_tpos, alg_norm, np.asarray(episodes[alg_norm][0]))
-if out_path is not None:
-    fig.savefig(out_path / "rliable_efficiency_curve_SAC.pdf", bbox_inches='tight')
-fig.show()
+# %% Probability of Improvement
+print('Plotting Probability of Improvement')
+algos = list(rewards_tpos.keys())
 
-algos = [ni_et_al,
-         proposal_sac_key,
-         proposal_td3_key]
-fig, ax = plot_sample_efficiency(algos, rewards_tpos, alg_norm, np.asarray(episodes[alg_norm][0]))
-if out_path is not None:
-    fig.savefig(out_path / "rliable_efficiency_curve_proposal.pdf", bbox_inches='tight')
-fig.show()
+algos_pairs = {
+    # Target coordinates
+    'baseline': [
+        ('TD3', 'SAC'),
+        ('DQN', 'SAC'),
+        ('DQN', 'TD3'),
+        ],
+    'SAC': [
+        (methods['sac_rec'], methods['td3_rec']),
+        (methods['sac_rec'], methods['dqn_rec']),
+        (methods['sac_rec'], 'SAC'),
+        (methods['sac_rec'], 'TD3'),
+        (methods['sac_rec'], 'DQN'),
+        ],
+    'TD3': [
+        (methods['td3_rec'], methods['sac_rec']),
+        (methods['td3_rec'], methods['dqn_rec']),
+        (methods['td3_rec'], 'SAC'),
+        (methods['td3_rec'], 'TD3'),
+        (methods['td3_rec'], 'DQN'),
+        ],
+    'DQN': [
+        (methods['dqn_rec'], methods['sac_rec']),
+        (methods['dqn_rec'], methods['td3_rec']),
+        (methods['dqn_rec'], 'SAC'),
+        (methods['dqn_rec'], 'TD3'),
+        (methods['dqn_rec'], 'DQN'),
+        ],
+    'reconstruction': [
+        (methods['td3_rec'], methods['sac_rec']),
+        (methods['dqn_rec'], methods['sac_rec']),
+        (methods['dqn_rec'], methods['td3_rec']),
+        (methods['sac_rec'], 'SAC'),
+        (methods['td3_rec'], 'TD3'),
+        (methods['dqn_rec'], 'DQN'),
+        ],
+}
+algos_pairs = {
+    # Target coordinates
+    'baseline': [
+        ('TD3', 'SAC'),
+        ('DQN', 'SAC'),
+        ('DQN', 'TD3'),
+        ],
+    }
+    # 'TD3': [
+    #     (ispr_td3_key, 'TD3'),
+    #     (proprio_td3_key, 'TD3'),
+    #     (proprio_td3_key, ispr_td3_key),
+    #     ],
+    # 'SAC': [
+    #     (ispr_sac_key, 'SAC'),
+    #     (proprio_sac_key, 'SAC'),
+    #     (proprio_sac_key, ispr_sac_key),
+    #     ],
+    # 'self-predictive': [
+    #     # cross methods
+    #     (ispr_sac_key, ispr_td3_key),
+    #     ('SAC', ispr_td3_key),
+    #     ('SAC', ispr_sac_key),
+    #     ('TD3', ispr_td3_key),
+    #     ('TD3', ispr_sac_key),
+    #     ('TD3',   'SAC'),
+    #     ],
+    # 'sota': [
+    #     (ispr_td3_key,  ni_et_al),
+    #     (ispr_sac_key,  ni_et_al),
+    #     (ispr_td3_key,  ispr_sac_key),
+    #     ('TD3-SPR', 'SAC-SPR'),
+    #     ('TD3',   'SAC'),
+    #     ],
+    # Proprioceptive
+    # Baselines
+
+for pair_key, pair in algos_pairs.items():
+    print('Processing', pair_key)
+    fig, axes = plot_probability_improvement(algos, rewards_tpos, alg_norm, pair)
+    if out_path is not None:
+        fig.savefig(out_path / f"rliable_probability_improvement_{pair_key}.pdf", bbox_inches='tight')
+    fig.show()
+

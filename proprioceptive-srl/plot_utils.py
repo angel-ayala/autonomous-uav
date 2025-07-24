@@ -327,14 +327,17 @@ def plot_trajectory(fig, exp_data, phase='eval', episode=0, iteration=0):
 
 
 @contextmanager
-def plot_metric(title, label, is_percent=False, layout='constrained', figsize=(6, 5)):
+def plot_metric(title, ylabel, xlabel=None, is_percent=False, layout='constrained', figsize=(6, 5)):
     # instantiate a new figure
     fig = plt.figure(layout='constrained', figsize=figsize)
     yield fig
     # format
     ax = fig.gca()
-    ax.set_xlabel('Episodes', fontsize='xx-large')
-    ax.set_ylabel(label, fontsize='xx-large')
+    if xlabel:
+        ax.set_xlabel(xlabel, fontsize='xx-large')
+    else:
+        ax.set_xlabel('Episodes', fontsize='xx-large')
+    ax.set_ylabel(ylabel, fontsize='xx-large')
     if is_percent:
         ax.yaxis.set_major_formatter(mtick.FuncFormatter(
             lambda x, _: '{:,.0f}%'.format(x * 100)))

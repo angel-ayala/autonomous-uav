@@ -495,6 +495,7 @@ class DroneEnvMonitor(Monitor):
         env_data = {}
         env_data['target_quadrants'] = str(self.env.unwrapped.quadrants.tolist())
         env_data['flight_area'] = str(self.env.unwrapped.flight_area.tolist())
+        env_data['action_limits'] = str(self.env.unwrapped.action_limits.tolist())
         if outpath is None:
             json_path = self._data_store.store_path.parent / 'environment.json'
         else:
