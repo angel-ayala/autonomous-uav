@@ -307,6 +307,7 @@ def plot_trajectory(fig, exp_data, phase='eval', episode=0, iteration=0):
     ax_top.tick_params(axis='y', labelsize='large')
     ax_top.spines['right'].set_visible(False)
     ax_top.spines['top'].set_visible(False)
+    ax_top.grid()
 
     ax_side.set_title('Side View', fontsize='xx-large')
     ax_side.set_xlabel('X', fontsize='x-large')
@@ -322,6 +323,7 @@ def plot_trajectory(fig, exp_data, phase='eval', episode=0, iteration=0):
     ax_side.tick_params(axis='y', labelsize='large')
     ax_side.spines['right'].set_visible(False)
     ax_side.spines['top'].set_visible(False)
+    ax_side.grid()
 
     return ax_top, ax_side
 

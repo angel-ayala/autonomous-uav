@@ -23,6 +23,12 @@ from stable_baselines3.sac.policies import CnnPolicy as SACCnnPolicy
 from stable_baselines3.sac.policies import MultiInputPolicy as SACMultiInputPolicy
 from sb3_srl.sac_srl import SRLSACPolicy, SRLSAC
 
+from stable_baselines3 import DQN
+from stable_baselines3.dqn.policies import DQNPolicy
+from stable_baselines3.dqn.policies import CnnPolicy as DQNCnnPolicy
+from stable_baselines3.dqn.policies import MultiInputPolicy as DQNMultiInputPolicy
+from sb3_srl.dqn_srl import SRLDQNPolicy, SRLDQN
+
 from utils import (
     args2ae_config,
     args2env_params,
@@ -44,13 +50,16 @@ def parse_args():
     return args
 
 
-def profile_model(model, input_shape, device, action_shape=None):
+def profile_model(model, input_shape, device, action_shape=None, is_discrete=False):
     """Profiling developed models.
 
     based on https://github.com/angel-ayala/kutralnet/blob/master/utils/profiling.py"""
     x = torch.randn(input_shape).unsqueeze(0).to(device)
     if action_shape:
-        y = torch.randn(action_shape).unsqueeze(0).to(device)
+        if is_discrete:
+            y = torch.randint(action_shape, size=(1,)).unsqueeze(0).to(device)
+        else:
+            y = torch.randn(action_shape).unsqueeze(0).to(device)
         flops, params = profile(model, verbose=False,
                                 inputs=(x, y),)
     else:
@@ -63,6 +72,8 @@ if __name__ == '__main__':
     # Load arguments
     eval_args = parse_args()
     is_sac = 'sac' in str(eval_args.logspath).lower()
+    is_td3 = 'td3' in str(eval_args.logspath).lower()
+    is_dqn = 'dqn' in str(eval_args.logspath).lower()
     saved_args = load_json_dict(eval_args.logspath + '/arguments.json')
     env_params = args2env_params(saved_args)
 
@@ -70,11 +81,21 @@ if __name__ == '__main__':
     if saved_args['is_srl']:
         if is_sac:
             algorithm, policy = SRLSAC, SRLSACPolicy
-        else:
+        elif is_td3:
             algorithm, policy = SRLTD3, SRLTD3Policy
+        elif is_dqn:
+            algorithm, policy = SRLDQN, SRLDQNPolicy
+        else:
+            raise ValueError('Algorithm not found')
         # Autoencoder parameters
         env_params['action_shape'] = (4, )  # TODO: read from json file
-        env_params['state_shape'] = (18, )
+        if '_tc' in str(eval_args.logspath).lower():
+            env_params['state_shape'] = (18, )
+        elif '_ts' in str(eval_args.logspath).lower():
+            env_params['state_shape'] = (22, )
+        elif '_proprio' in str(eval_args.logspath).lower():
+            env_params['state_shape'] = (26, )
+            
         ae_config = args2ae_config(saved_args, env_params)
 
         # Policy args
@@ -82,13 +103,16 @@ if __name__ == '__main__':
             'ae_config': ae_config,
             'encoder_tau': saved_args['encoder_tau']
             }
-        if not is_sac:
+        if is_td3:
             policy_args['net_arch'] = [256, 256]
     else:
         if is_sac:
             algorithm, policy = SAC, SACPolicy
-        else:
+        elif is_td3:
             algorithm, policy = TD3, TD3Policy
+        elif is_dqn:
+            algorithm, policy = DQN, DQNPolicy
+
         policy_args = None
         if saved_args['is_pixels']:
             policy = SACCnnPolicy if is_sac else TD3CnnPolicy
@@ -109,46 +133,68 @@ if __name__ == '__main__':
     learn_flops, learn_params = 0, 0
     eval_flops, eval_params = 0, 0
     print("PolicyClass:", policy.__class__.__name__)
-    print("* CriticClass:", policy.critic.__class__.__name__)
-    print("  - StateSpace:", policy.critic.observation_space.shape)
-    critic_input = (policy.actor.features_dim,
-                    ) if is_srl else policy.critic.observation_space.shape
-    flops, params = profile_model(
-        policy.critic, critic_input, model.device,
-        action_shape=model.policy.actor.action_space.shape)
-    n_critics = len(policy.critic.q_networks)
-    learn_flops += flops * 2
-    learn_params += params * 2
-    eval_flops += flops / n_critics
-    eval_params += params / n_critics
-    flops_str, params_str = clever_format([flops, params], "%.3f")
-    print("  - Learning cost:",
-          f" {n_critics} X {flops_str} flops, {params_str} params ({model.device})")
-    flops_str, params_str = clever_format(
-        [flops / n_critics, params / n_critics], "%.3f")
-    print("  - Eval cost:    ",
-          f" {flops_str} flops, {params_str} params ({model.device})")
-    if eval_args.with_model:
-        print("  - Model:", policy.critic)
-
-    print("* ActorClass:", policy.actor.__class__.__name__)
-    print("  - ActionSpace:", policy.actor.action_space.shape)
-    flops, params = profile_model(
-        policy.actor, policy.actor.features_dim, model.device)
-    n_actors = 1 if is_sac else 2
-    learn_flops += flops * n_actors
-    learn_params += params * n_actors
-    eval_flops += flops
-    eval_params += params
-    flops_str, params_str = clever_format([flops, params], "%.3f")
-    print("  - Learning cost:",
-          f" {n_actors} X {flops_str} flops, {params_str} params ({model.device})")
-    print("  - Eval cost:    ",
-          f" {flops_str} flops, {params_str} params ({model.device})")
-    if eval_args.with_model:
-        print("  - Model:", policy.actor)
+    if is_dqn:
+        obs_space = policy.q_net.observation_space
+        feats_dim = policy.q_net.features_dim
+        print("* NetworkClass:", policy.q_net.__class__.__name__)
+        print("  - StateSpace:", policy.q_net.observation_space.shape)
+        q_input = (feats_dim, ) if is_srl else obs_space.shape
+        flops, params = profile_model(policy.q_net, q_input, model.device)
+        learn_flops += flops * 2
+        learn_params += params * 2
+        eval_flops += flops
+        eval_params += params
+        flops_str, params_str = clever_format([flops, params], "%.3f")
+        print("  - Learning cost:",
+              f" {flops_str} flops, {params_str} params ({model.device})")
+        flops_str, params_str = clever_format([flops, params], "%.3f")
+        print("  - Eval cost:    ",
+              f" {flops_str} flops, {params_str} params ({model.device})")
+        if eval_args.with_model:
+            print("  - Model:", policy.q_net)
+        
+    if is_td3 or is_sac:
+        obs_space = policy.critic.observation_space
+        feats_dim = policy.actor.features_dim
+        print("* CriticClass:", policy.critic.__class__.__name__)
+        print("  - StateSpace:", policy.critic.observation_space.shape)
+        critic_input = (feats_dim, ) if is_srl else obs_space.shape
+        flops, params = profile_model(
+            policy.critic, critic_input, model.device,
+            action_shape=model.policy.actor.action_space.shape)
+        n_critics = len(policy.critic.q_networks)
+        learn_flops += flops * 2
+        learn_params += params * 2
+        eval_flops += flops / n_critics
+        eval_params += params / n_critics
+        flops_str, params_str = clever_format([flops, params], "%.3f")
+        print("  - Learning cost:",
+              f" {n_critics} X {flops_str} flops, {params_str} params ({model.device})")
+        flops_str, params_str = clever_format(
+            [flops / n_critics, params / n_critics], "%.3f")
+        print("  - Eval cost:    ",
+              f" {flops_str} flops, {params_str} params ({model.device})")
+        if eval_args.with_model:
+            print("  - Model:", policy.critic)
+    
+        print("* ActorClass:", policy.actor.__class__.__name__)
+        print("  - ActionSpace:", policy.actor.action_space.shape)
+        flops, params = profile_model(policy.actor, feats_dim, model.device)
+        n_actors = 1 if is_sac else 2
+        learn_flops += flops * n_actors
+        learn_params += params * n_actors
+        eval_flops += flops
+        eval_params += params
+        flops_str, params_str = clever_format([flops, params], "%.3f")
+        print("  - Learning cost:",
+              f" {n_actors} X {flops_str} flops, {params_str} params ({model.device})")
+        print("  - Eval cost:    ",
+              f" {flops_str} flops, {params_str} params ({model.device})")
+        if eval_args.with_model:
+            print("  - Model:", policy.actor)
 
     if is_srl:
+        is_rec = 'Reconstruction' in model.policy.rep_model.type
         print()
         print("====== Representation's architecture ======")
         print(model.policy.rep_model)
@@ -156,8 +202,7 @@ if __name__ == '__main__':
         decoder = policy.rep_model.decoder
         print("* EncoderClass:", encoder.__class__.__name__)
         print("  - LatentDim:", encoder.latent_dim)
-        encoder_input = policy.critic.observation_space.shape
-        flops, params = profile_model(encoder, encoder_input, model.device)
+        flops, params = profile_model(encoder, obs_space.shape, model.device)
         learn_flops += flops * 2
         learn_params += params * 2
         eval_flops += flops
@@ -172,11 +217,20 @@ if __name__ == '__main__':
             print("  - Model:", encoder)
 
         print("* DecoderClass:", decoder.__class__.__name__)
-        print("  - OutputDim:", policy.actor.features_dim)
-        decoder_input = policy.actor.features_dim
-        flops, params = profile_model(
-            decoder, decoder_input, model.device,
-            action_shape=model.policy.actor.action_space.shape)
+        decoder_input = feats_dim
+        if is_rec:
+            print("  - Output:", obs_space.shape)
+            flops, params = profile_model(decoder, decoder_input, model.device)
+        else:
+            print("  - OutputDim:", feats_dim)
+            if is_dqn:
+                action_shape = int(model.policy.q_net.action_space.n)
+            else:
+                action_shape = model.policy.actor.action_space.shape
+            print('action_shape', action_shape)
+            flops, params = profile_model(
+                decoder, decoder_input, model.device,
+                action_shape=action_shape, is_discrete=is_dqn)
         learn_flops += flops
         learn_params += params
         flops_str, params_str = clever_format([flops, params], "%.3f")

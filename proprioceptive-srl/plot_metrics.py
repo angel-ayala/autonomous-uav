@@ -103,12 +103,12 @@ def process_exp_data(exp_data, phase, pbar):
 # %% Constant definitions
 # _suffix = ' (ours)'
 # _ksuffix = ''
-# _suffix = ''
-# _ksuffix = ''
-# _suffix = '/TS'
-# _ksuffix = '_ts'
-_suffix = '/TC'
-_ksuffix = '_tc'
+_suffix = ''
+_ksuffix = ''
+# _suffix = '/TC'
+# _ksuffix = '_tc'
+_suffix = '/TS'
+_ksuffix = '_ts'
 
 phase = 'eval'
 exp_summ = None
@@ -119,13 +119,9 @@ episodes = {}
 rewards_tpos = {}
 
 # %% Data reading and preprocessing
-# base_path = Path('/home/angel/desarrollo/uav_navigation/rl_experiments/logs_cf_vector_new')
-base_path = Path('/home/timevisao/angel/autonomous-uav/proprioceptive-srl/logs_cf_ispr')
-# base_path = Path('/home/angel/desarrollo/autonomous-uav/proprioceptive-srl/logs_sac_ispr')
 base_path = Path('/home/timevisao/angel/autonomous-uav/proprioceptive-srl/logs_cf_tc')
 base_path = Path('/home/timevisao/angel/autonomous-uav/proprioceptive-srl/logs_cf_ts')
-# base_path = Path('/home/angel/desarrollo/sb3-srl/logs_cf_pixel_paper')
-# base_path = Path('/home/angel/desarrollo/sb3-srl/logs_cf_vector_alm')
+# base_path = Path('/home/timevisao/angel/autonomous-uav/proprioceptive-srl/logs_cf_proprio')
 
 # filter
 exp_paths = []
@@ -134,6 +130,15 @@ for p in base_path.iterdir():
     if 'random' in folder_name or 'assets' in folder_name or p.is_file():
         continue
     # if 'alm' not in folder_name:
+    #     continue
+    # if '-' in folder_name:
+    #     continue
+    if 'dqn' in folder_name:
+        continue
+    if 'ispr-joint-' not in folder_name:
+    # if 'proprio-joint' not in folder_name:
+        continue
+    # if 'ispr-joint-stch' not in folder_name:
     #     continue
     # if 'sac' in str(p):  # filter SAC
     # if 'td3' in str(p):  # filter TD3
@@ -165,7 +170,7 @@ for exp_path in exp_paths:
         algo_key = 'ni_et_al'
     else:
         # read normal experiment
-        exp_data = ExperimentData(exp_path, eval_regex=r"eval/history_*.csv")
+        exp_data = ExperimentData(exp_path, csv_name=None, eval_regex=r"eval/history_*.csv")
         algo_key = exp_data.alg_name.lower().replace('-', '_') + _ksuffix
 
     # proposals results
@@ -180,6 +185,7 @@ for exp_path in exp_paths:
     algo_data_path = base_path / f"data_{algo_key}_{phase}.npz"
     if algo_data_path.exists() and algo_data_path.is_file():
         if exp_data.alg_name in rewards.keys():
+            append_info(exp_data, phase)
             for i in range(5):
                 pbar.update()
             continue
@@ -231,21 +237,30 @@ if out_path is not None:
 # %% Define algorithms group
 
 algos_grp = {
-    # 'baseline': ['DQN', 'SAC', 'TD3'],
-    # 'DQN': ['DQN', methods['dqn_rec']],
-    # 'TD3': ['TD3', methods['td3_rec']],
-    # 'SAC': ['SAC'] + [methods[k] for k in ['sac_rec', 'sac_rec_stch']],
-    # 'comparison': [methods[k] for k in ['dqn_rec', 'td3_rec', 'sac_rec']],
+    # target coordinates
+    # 'baseline': [methods[k] for k in ['dqn', 'sac', 'td3']],
+    # 'DQN': [methods[k] for k in ['dqn', 'dqn_rec']],
+    # 'TD3': [methods[k] for k in ['td3', 'td3_rec']],
+    # 'SAC': [methods[k] for k in ['sac', 'sac_rec']],  # , 'sac_rec_stch']],
+    # 'comparison': [methods[k] for k in ['dqn_rec', 'sac_rec', 'td3_rec']],
 
-    # 'TD3':  [methods[k] for k in ['td3', 'td3_ispr', 'td3_spr']],
-    # 'SAC': ['SAC'] + [methods[k] for k in ['sac', 'sac_ispr', 'sac_spr']],
-    # 'comparison': [methods[k] for k in ['td3_ispr', 'sac_ispr', 'ni_et_al', 'td3_spr']],
-
-    'baseline': [methods[k] for k in ['dqn', 'td3', 'sac' ]],
-    'baseline_tc': [methods[k] for k in ['dqn_tc', 'td3_tc', 'sac_tc' ]],
-    'DQN': [methods[k] for k in ['dqn', 'dqn_tc', 'dqn_ispr']],
-    'TD3': [methods[k] for k in ['td3', 'td3_tc', 'td3_ispr']],
-    'SAC': [methods[k] for k in ['sac', 'sac_tc', 'sac_ispr']],
+    # sensor-based
+    # 'vanilla_tc': [methods[k] for k in ['dqn', 'dqn_tc', 'sac', 'sac_tc', 'td3', 'td3_tc']],
+    # 'vanilla': [methods[k] for k in ['dqn', 'sac', 'td3']],
+    # 'DQN': [methods[k] for k in ['dqn', 'dqn_ispr', 'dqn_ispr_stch']],
+    # 'TD3': [methods[k] for k in ['td3', 'td3_ispr', 'td3_ispr_stch']],
+    # 'SAC': [methods[k] for k in ['sac', 'sac_ispr', 'sac_ispr_stch']],
+    # 'ISPR': [methods[k] for k in ['dqn_ispr', 'sac_ispr', 'td3_ispr']],
+    # 'ISPR-STCH': [methods[k] for k in ['dqn_ispr_stch', 'sac_ispr_stch', 'td3_ispr_stch']],
+    # 'SOTA': [methods[k] for k in ['sac', 'td3', 'ni_et_al', 'sac_spr', 'sac_ispr_stch', 'td3_spr', 'td3_ispr_stch']],
+    
+    # proprioceptive
+    # 'vanilla_ts': [methods[k] for k in ['sac', 'sac_ts', 'td3', 'td3_ts']],
+    'ISPR_ts': [methods[k] for k in ['sac', 'sac_ispr_stch', 'sac_ispr_stch_ts',
+                                     'td3', 'td3_ispr_stch', 'td3_ispr_stch_ts']],
+    # 'vanilla': [methods[k] for k in ['sac', 'td3']],
+    # 'SAC': [methods[k] for k in ['sac', 'sac_ispr_stch', 'sac_proprio_stch', 'sac_ispr_stch_ts']],
+    # 'TD3': [methods[k] for k in ['td3', 'td3_proprio', 'td3_proprio_stch', 'td3_ispr_stch_ts']],
     
     }
 
@@ -261,13 +276,11 @@ for grp_key, grp in algos_grp.items():
     for metric_id in nav_plots:
         print('Plotting', metric_id[0])
         out_fig = out_path / f"nav_metric_{metric_id[0]}_{grp_key}.pdf" if out_path is not None else out_path
-        with plot_metric(metric_id[2], metric_id[1], metric_id[-1], figsize=(7,5)) as fig:
+        with plot_metric(metric_id[2], metric_id[1], xlabel=None, is_percent=metric_id[-1], figsize=(7,5)) as fig:
             ax = fig.add_subplot(1, 1, 1)
             set_color_palette(ax)
-            for i, (label, values) in enumerate(nav_metrics.items()):
-                # print(type(values[0]), values[0].shape, metric_id[0])
-                if label not in grp:
-                    continue
+            for label in grp:
+                values = nav_metrics[label]
                 eps = np.asarray(episodes[label][0]) + 1
                 plot_values = np.vstack([v[metric_id[0]].values for v in values])
                 draw_metric(ax, label, eps, plot_values, metric_id[-1])
@@ -278,7 +291,7 @@ for grp_key, grp in algos_grp.items():
 # %% Reward metrics
 print('Plotting reward curve')
 out_fig = out_path / f"reward_{phase}.pdf" if out_path is not None else out_path
-with plot_metric(f"Reward curve during {phase}", 'Accumulative reward', False) as fig:
+with plot_metric(f"Reward curve during {phase}", 'Accumulative reward', is_percent=False) as fig:
     ax = fig.add_subplot(1, 1, 1)
     set_color_palette(ax)
     for i, (label, values) in enumerate(rewards.items()):
@@ -294,7 +307,7 @@ quadrant_idx = 20
 print('Plotting reward curve - TargetQuadrant:', metric_id[0])
 out_fig = out_path / f"reward_{phase}_tq_{quadrant_idx}.pdf" if out_path is not None else out_path
 with plot_metric(f"Reward curve during {phase} for TargetQuadrant{quadrant_idx}",
-                 'Accumulative reward', False) as fig:
+                 'Accumulative reward', is_percent=False) as fig:
     ax = fig.add_subplot(1, 1, 1)
     set_color_palette(ax)
     for i, (label, values) in enumerate(rewards_tpos.items()):
@@ -309,18 +322,25 @@ fig.show()
 # IQM, Optimality Gap, Median, Mean
 print('Plotting aggregated reward')
 algos = list(rewards_tpos.keys())
-# algos = ['DQN', 'SAC', 'TD3'] + ['DQN/TC', 'SAC/TC', 'TD3/TC']
-algos = [methods[k] for k in ['dqn', 'dqn_tc', 'sac', 'sac_tc', 'td3', 'td3_tc']]
-algos = algos_grp['DQN'] + algos_grp['SAC'] + algos_grp['TD3']
 alg_norm = 'TD3'
-# alg_norm = 'SAC'
-# alg_norm = ni_et_al
+# algos = algos_grp['DQN'] + algos_grp['SAC'] + algos_grp['TD3']
+# grp_key = 'comparison'
+# algos = algos_grp['vanilla_tc']
+# grp_key = 'vanilla_tc'
+# algos = algos_grp['SOTA']
+# grp_key = 'sota'
+# algos = algos_grp['vanilla_ts']
+# grp_key = 'vanilla_ts'
+algos = algos_grp['ISPR_ts']
+grp_key = 'ISPR_ts'
+# algos = algos_grp['SAC'] + algos_grp['TD3']
+# grp_key = 'comparison'
 
 metric2plot = ['Median', 'IQM', 'Mean', 'Optimality Gap']
 fig, axes = plot_aggregated_metrics(algos, rewards_tpos, alg_norm, metric2plot)
 
 if out_path is not None:
-    fig.savefig(out_path / "rliable_aggregated_metrics.pdf", bbox_inches='tight', pad_inches=0.1)
+    fig.savefig(out_path / f"rliable_aggregated_metrics_{grp_key}.pdf", bbox_inches='tight', pad_inches=0.1)
 fig.show()
 
 # %% Performance profile
@@ -346,79 +366,110 @@ for grp_key, grp in algos_grp.items():
 print('Plotting Probability of Improvement')
 algos = list(rewards_tpos.keys())
 
+# Target coordinates
+# algos_pairs = {
+#     'baseline': [
+#         ('TD3', 'SAC'),
+#         ('DQN', 'SAC'),
+#         ('DQN', 'TD3'),
+#         ],
+#     'SAC': [
+#         (methods['sac_rec'], methods['td3_rec']),
+#         (methods['sac_rec'], methods['dqn_rec']),
+#         (methods['sac_rec'], 'SAC'),
+#         (methods['sac_rec'], 'TD3'),
+#         (methods['sac_rec'], 'DQN'),
+#         ],
+#     'TD3': [
+#         (methods['td3_rec'], methods['sac_rec']),
+#         (methods['td3_rec'], methods['dqn_rec']),
+#         (methods['td3_rec'], 'SAC'),
+#         (methods['td3_rec'], 'TD3'),
+#         (methods['td3_rec'], 'DQN'),
+#         ],
+#     'DQN': [
+#         (methods['dqn_rec'], methods['sac_rec']),
+#         (methods['dqn_rec'], methods['td3_rec']),
+#         (methods['dqn_rec'], 'SAC'),
+#         (methods['dqn_rec'], 'TD3'),
+#         (methods['dqn_rec'], 'DQN'),
+#         ],
+#     # 'reconstruction': [
+#     #     (methods['td3_rec'], methods['sac_rec']),
+#     #     (methods['dqn_rec'], methods['sac_rec']),
+#     #     (methods['dqn_rec'], methods['td3_rec']),
+#     #     (methods['sac_rec'], 'SAC'),
+#     #     (methods['td3_rec'], 'TD3'),
+#     #     (methods['dqn_rec'], 'DQN'),
+#     #     ],
+# }
+# # Target sensing
+# algos_pairs = {
+#     'vanilla_tc': [
+#         ('TD3', methods['td3_tc']),
+#         ('SAC', methods['sac_tc']),
+#         ('DQN', methods['dqn_tc']),
+#         ],
+#     'baseline': [
+#         ('TD3', 'SAC'),
+#         ('SAC', 'DQN'),
+#         ('DQN', 'TD3'),
+#         ],
+#     'SAC': [
+#         (methods['sac_ispr_stch'], methods['td3_ispr_stch']),
+#         (methods['sac_ispr_stch'], methods['td3_ispr']),
+#         (methods['sac_ispr_stch'], methods['sac_ispr']),
+#         (methods['sac_ispr_stch'], methods['dqn_ispr']),
+#         (methods['sac_ispr_stch'], 'TD3'),
+#         (methods['sac_ispr_stch'], 'SAC'),
+#         (methods['sac_ispr_stch'], 'DQN'),
+#         ],
+#     'TD3': [
+#         (methods['td3_ispr_stch'], methods['sac_ispr_stch']),
+#         (methods['td3_ispr_stch'], methods['sac_ispr']),
+#         (methods['td3_ispr_stch'], methods['td3_ispr']),
+#         (methods['td3_ispr_stch'], methods['dqn_ispr']),
+#         (methods['td3_ispr_stch'], 'TD3'),
+#         (methods['td3_ispr_stch'], 'SAC'),
+#         (methods['td3_ispr_stch'], 'DQN'),
+#         ],
+#     'DQN': [
+#         (methods['dqn_ispr'], methods['sac_ispr_stch']),
+#         (methods['dqn_ispr'], methods['td3_ispr_stch']),
+#         (methods['dqn_ispr'], methods['dqn_ispr_stch']),
+#         (methods['dqn_ispr'], 'TD3'),
+#         (methods['dqn_ispr'], 'SAC'),
+#         (methods['dqn_ispr'], 'DQN'),
+#         ],
+# }
+
+# Proprioceptive
 algos_pairs = {
-    # Target coordinates
-    'baseline': [
-        ('TD3', 'SAC'),
-        ('DQN', 'SAC'),
-        ('DQN', 'TD3'),
+    # 'vanilla_ts': [
+    #     ('SAC', methods['sac_ts']),
+    #     ('TD3', methods['td3_ts']),
+    #     ('TD3', 'SAC'),
+    #     ],
+    'ISPR_ts': [
+        (methods['td3_ispr_stch'], methods['sac_ispr_stch']),
+        (methods['td3_ispr_stch'], methods['td3_ispr_stch_ts']),
+        (methods['sac_ispr_stch'], methods['sac_ispr_stch_ts']),
         ],
     'SAC': [
-        (methods['sac_rec'], methods['td3_rec']),
-        (methods['sac_rec'], methods['dqn_rec']),
-        (methods['sac_rec'], 'SAC'),
-        (methods['sac_rec'], 'TD3'),
-        (methods['sac_rec'], 'DQN'),
+        (methods['sac_proprio_stch'], methods['td3_proprio_stch']),
+        (methods['sac_proprio_stch'], methods['td3_ispr_stch_ts']),
+        (methods['sac_proprio_stch'], methods['sac_ispr_stch_ts']),
+        (methods['sac_proprio_stch'], 'TD3'),
+        (methods['sac_proprio_stch'], 'SAC'),
         ],
     'TD3': [
-        (methods['td3_rec'], methods['sac_rec']),
-        (methods['td3_rec'], methods['dqn_rec']),
-        (methods['td3_rec'], 'SAC'),
-        (methods['td3_rec'], 'TD3'),
-        (methods['td3_rec'], 'DQN'),
-        ],
-    'DQN': [
-        (methods['dqn_rec'], methods['sac_rec']),
-        (methods['dqn_rec'], methods['td3_rec']),
-        (methods['dqn_rec'], 'SAC'),
-        (methods['dqn_rec'], 'TD3'),
-        (methods['dqn_rec'], 'DQN'),
-        ],
-    'reconstruction': [
-        (methods['td3_rec'], methods['sac_rec']),
-        (methods['dqn_rec'], methods['sac_rec']),
-        (methods['dqn_rec'], methods['td3_rec']),
-        (methods['sac_rec'], 'SAC'),
-        (methods['td3_rec'], 'TD3'),
-        (methods['dqn_rec'], 'DQN'),
+        (methods['td3_proprio_stch'], methods['sac_proprio_stch']),
+        (methods['td3_proprio_stch'], methods['sac_ispr_stch_ts']),
+        (methods['td3_proprio_stch'], methods['td3_ispr_stch_ts']),
+        (methods['td3_proprio_stch'], 'TD3'),
+        (methods['td3_proprio_stch'], 'SAC'),
         ],
 }
-algos_pairs = {
-    # Target coordinates
-    'baseline': [
-        ('TD3', 'SAC'),
-        ('DQN', 'SAC'),
-        ('DQN', 'TD3'),
-        ],
-    }
-    # 'TD3': [
-    #     (ispr_td3_key, 'TD3'),
-    #     (proprio_td3_key, 'TD3'),
-    #     (proprio_td3_key, ispr_td3_key),
-    #     ],
-    # 'SAC': [
-    #     (ispr_sac_key, 'SAC'),
-    #     (proprio_sac_key, 'SAC'),
-    #     (proprio_sac_key, ispr_sac_key),
-    #     ],
-    # 'self-predictive': [
-    #     # cross methods
-    #     (ispr_sac_key, ispr_td3_key),
-    #     ('SAC', ispr_td3_key),
-    #     ('SAC', ispr_sac_key),
-    #     ('TD3', ispr_td3_key),
-    #     ('TD3', ispr_sac_key),
-    #     ('TD3',   'SAC'),
-    #     ],
-    # 'sota': [
-    #     (ispr_td3_key,  ni_et_al),
-    #     (ispr_sac_key,  ni_et_al),
-    #     (ispr_td3_key,  ispr_sac_key),
-    #     ('TD3-SPR', 'SAC-SPR'),
-    #     ('TD3',   'SAC'),
-    #     ],
-    # Proprioceptive
-    # Baselines
 
 for pair_key, pair in algos_pairs.items():
     print('Processing', pair_key)

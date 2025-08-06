@@ -122,12 +122,69 @@ if __name__ == '__main__':
     out_path = base_path / 'assets_real' / 'plot_trajectories'
     if out_path is not None and not out_path.exists():
         out_path.mkdir(parents=True)
+    # %% Read proposal target_coordinates data
+    base_path = Path('logs_cf_tc')
+    exp_list = []
+    exp_paths = [
+        'dqn_2',
+        'dqn-rec-joint_3',
+        'sac_4',
+        'sac-rec-joint_1',
+        'td3_4',
+        'td3-rec-joint_5',
+        ]
+
+    for epath in exp_paths:
+        exp_data = ExperimentData(base_path / epath, eval_regex=r"eval/history_*.csv")
+        exp_list.append(exp_data)
+
+    out_path = base_path / 'assets' / 'trajectories'
+    if out_path is not None and not out_path.exists():
+        out_path.mkdir(parents=True)
+    # %% Read proposal target_sensing data
+    base_path = Path('logs_cf_ts')
+    exp_list = []
+    exp_paths = [
+        'dqn_5',
+        'dqn-ispr-joint_5',
+        'sac_2',
+        'sac-ispr-joint-stch_5',
+        'td3_3',
+        'td3-ispr-joint-stch_1',
+        ]
+
+    for epath in exp_paths:
+        exp_data = ExperimentData(base_path / epath, eval_regex=r"eval/history_*.csv")
+        exp_list.append(exp_data)
+
+    out_path = base_path / 'assets' / 'trajectories'
+    if out_path is not None and not out_path.exists():
+        out_path.mkdir(parents=True)
+    # %% Read proposal proprioceptive data
+    base_path = Path('logs_cf_proprio')
+    exp_list = []
+    exp_paths = [
+        'sac_5',
+        'sac-proprio-joint-stch_5',
+        'td3_1',
+        'td3-proprio-joint-stch_1',
+        ]
+
+    for epath in exp_paths:
+        exp_data = ExperimentData(base_path / epath, csv_name=None, eval_regex=r"eval/history_*.csv")
+        exp_list.append(exp_data)
+
+    out_path = base_path / 'assets' / 'trajectories'
+    if out_path is not None and not out_path.exists():
+        out_path.mkdir(parents=True)
     # %% Plot trajectories
     phase = 'eval'
-    episode = 49
+    episode = 4
+    # episode = 19
+    # episode = 49
     iteration = 160
-    episode = -1
-    iteration = 0
+    # episode = -1
+    # iteration = 0
 
     # Create figure and axis
     for _data in exp_list:
@@ -146,7 +203,7 @@ if __name__ == '__main__':
     plots = [  # metric_id, y_label, plt_title, is_percent
         ('SR', 'SR', 'Success rate comparison', True),
         ('SPL', 'SPL', 'Success path length comparison', True),
-        ('SSPL', 'SSPL', 'Soft success path length comparison', True),
+        # ('SSPL', 'SSPL', 'Soft success path length comparison', True),
         ('DTS', 'DTS (meters)', 'Distance to success comparison', False)
     ]
 
