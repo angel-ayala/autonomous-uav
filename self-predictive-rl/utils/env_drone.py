@@ -189,8 +189,8 @@ def args2env_params(args):
     return env_params
 
 
-def instance_env(name='webots_drone:webots_drone/DroneEnvDiscrete-v0',
-                 env_params={}, seed=666):
+def instance_drone_env(name='webots_drone:webots_drone/DroneEnvDiscrete-v0',
+                       env_params={}, seed=666):
     _env_params = {
         'time_limit_seconds': env_params.get('time_limit', 60),
         'max_no_action_seconds': env_params.get('time_no_action', 5),
