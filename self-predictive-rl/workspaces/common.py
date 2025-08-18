@@ -1,5 +1,5 @@
-from pathlib import Path
 import numpy as np
+import utils
 from utils import logger
 
 
@@ -33,15 +33,40 @@ def make_agent(env, device, cfg):
 
 
 def make_env(cfg):
-    if cfg.benchmark == "gym-drone":
-        from utils.misc import args2env_params, instance_env
+    if cfg.benchmark == "gym":
+        import gym
 
+        if cfg.id == "T-Ant-v2" or cfg.id == "T-Humanoid-v2":
+            utils.register_mbpo_environments()
+
+        def get_env(cfg):
+            env = gym.make(cfg.id)
+
+            if cfg.distraction > 0:
+                from workspaces.distracted_env import DistractedWrapper
+
+                env = DistractedWrapper(
+                    env,
+                    distraction=cfg.distraction,
+                    scale=cfg.scale,
+                )
+
+            env = gym.wrappers.RecordEpisodeStatistics(env)
+            env.seed(seed=cfg.seed)
+            env.observation_space.seed(cfg.seed)
+            env.action_space.seed(cfg.seed)
+            logger.log(env.observation_space.shape, env.action_space)
+            return env
+
+        return get_env(cfg), get_env(cfg)
+
+    elif cfg.benchmark == "gym-drone":
         # Environment
         environment_name = 'webots_drone:webots_drone/CrazyflieEnvContinuous-v0'
 
         def get_env(cfg):
-            env_params = args2env_params(cfg)
-            env = instance_env(environment_name, env_params, seed=cfg.seed)
+            env_params = utils.args2env_params(cfg)
+            env = utils.instance_drone_env(environment_name, env_params, seed=cfg.seed)
             env.observation_space.seed(cfg.seed)
             env.action_space.seed(cfg.seed)
             logger.log(env.observation_space.shape, env.action_space)

@@ -1,0 +1,5 @@
+defaults:
+  - _self_ 
+  - agent@_global_: 'alm_drone'
+  - override hydra/hydra_logging: disabled  
+  - override hydra/job_logging: disabled  

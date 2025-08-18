@@ -171,7 +171,7 @@ def parse_srl_args(parser):
     arg_srl.add_argument("--model-i2spr", action='store_true',
                          help='Whether if use the Introspective InfoNCE SimpleSPR model.')
     arg_srl.add_argument("--introspection-lambda", type=float, default=0,
-                         help='Introspection loss function \lambda value, >0 to use introspection.')
+                         help='Introspection loss function lambda value, >0 to use introspection.')
     arg_srl.add_argument("--joint-optimization", action='store_true',
                          help='Whether if jointly optimize representation with RL updates.')
     arg_srl.add_argument("--model-ispr-mumo", action='store_true',

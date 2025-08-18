@@ -2,31 +2,23 @@ import random
 import torch
 import time
 import numpy as np
-from natsort import natsorted
+
 from pathlib import Path
-
-from utils import logger
-from utils.env_drone import args2target
-from utils.env_drone import DroneEnvMonitor
-from utils.env_drone import evaluate_agent
 from utils.env_mujoco import save_frames_as_gif
-
+from utils import logger
 from workspaces.common import make_agent, make_env
 
 
-class DroneWorkspace:
+class MujocoWorkspace:
     def __init__(self, cfg):
         self.work_dir = Path(cfg.save_dir)
         self.cfg = cfg
         if self.cfg.save_snapshot:
-            self.checkpoint_path = self.work_dir / "agents"
+            self.checkpoint_path = self.work_dir / "checkpoints"
             self.checkpoint_path.mkdir(exist_ok=True)
         self.device = torch.device(cfg.device)
         self.set_seed()
-        self.train_env = make_env(self.cfg)
-        self.train_env = DroneEnvMonitor(self.train_env,
-                                         store_path=self.work_dir /'history_training.csv',
-                                         n_sensors=4)
+        self.train_env, self.eval_env = make_env(self.cfg)
         self.agent = make_agent(self.train_env, self.device, self.cfg)
         self._train_step = 0
         self._train_episode = 0
@@ -40,21 +32,13 @@ class DroneWorkspace:
 
     def train(self):
         self._explore()
-        self.train_env.init_store()
-        self.train_env.set_learning()
-        self.train_env.set_episode()
+        self._eval()
 
-        state, info = self.train_env.reset()
-        done, episode_start_time = False, time.time()
-        ep_reward, ep_length = 0, 0
+        state, done, episode_start_time = self.train_env.reset(), False, time.time()
 
-        # for _ in range(1, self.cfg.num_train_steps - self.cfg.explore_steps + 1):
-        for _ in range(1, self.cfg.num_train_steps + 1):
-            action = self.agent.get_action(state, self._train_step)[0]
-            next_state, reward, done, truncated, info = self.train_env.step(
-                action * self.train_env.action_space.high)
-            ep_reward += reward
-            ep_length += 1
+        for _ in range(1, self.cfg.num_train_steps - self.cfg.explore_steps + 1):
+            action = self.agent.get_action(state, self._train_step)
+            next_state, reward, done, info = self.train_env.step(action)
             self._train_step += 1
 
             self.agent.env_buffer.push(
@@ -63,7 +47,7 @@ class DroneWorkspace:
                     action,
                     reward,
                     next_state,
-                    done,
+                    False if info.get("TimeLimit.truncated", False) else done,
                 )
             )
 
@@ -71,29 +55,26 @@ class DroneWorkspace:
 
             if (self._train_step) % self.cfg.eval_episode_interval == 0:
                 self._eval()
-                truncated = True
+
             if (
                 self.cfg.save_snapshot
                 and (self._train_step) % self.cfg.save_snapshot_interval == 0
             ):
                 self.save_snapshot()
-                self.train_env.set_episode()
-                truncated = True
 
-            if done or truncated:
+            if done:
                 self._train_episode += 1
                 print(
-                    "TRAIN Episode: {}, total numsteps: {}({}), return: {}".format(
+                    "TRAIN Episode: {}, total numsteps: {}, return: {}".format(
                         self._train_episode,
                         self._train_step,
-                        ep_length,
-                        round(ep_reward, 2),
+                        round(info["episode"]["r"], 2),
                     )
                 )
                 episode_metrics = dict()
-                episode_metrics["train/length"] = ep_length
-                episode_metrics["train/return"] = ep_reward
-                episode_metrics["FPS"] = ep_length / (
+                episode_metrics["train/length"] = info["episode"]["l"]
+                episode_metrics["train/return"] = info["episode"]["r"]
+                episode_metrics["FPS"] = info["episode"]["l"] / (
                     time.time() - episode_start_time
                 )
                 # episode_metrics["env_buffer_length"] = len(self.agent.env_buffer)
@@ -102,89 +83,71 @@ class DroneWorkspace:
                     logger.record_tabular(k, v)
                 logger.dump_tabular()
 
-                state, info = self.train_env.reset()
-                done, episode_start_time = False, time.time()
-                ep_reward, ep_length = 0, 0
+                state, done, episode_start_time = (
+                    self.train_env.reset(),
+                    False,
+                    time.time(),
+                )
             else:
                 state = next_state
 
         self.train_env.close()
 
     def _explore(self):
-        state, info = self.train_env.reset()
+        state, done = self.train_env.reset(), False
 
         for _ in range(1, self.cfg.explore_steps):
             action = self.train_env.action_space.sample()
-            next_state, reward, done, truncated, info = self.train_env.step(action)
+            next_state, reward, done, info = self.train_env.step(action)
             self.agent.env_buffer.push(
                 (
                     state,
                     action,
                     reward,
                     next_state,
-                    done,
+                    False if info.get("TimeLimit.truncated", False) else done,
                 )
             )
 
-            if done or truncated:
-                state, info = self.train_env.reset()
+            if done:
+                state, done = self.train_env.reset(), False
             else:
                 state = next_state
 
-    def _agent_select_action(self, observations):
-        action = self.agent.get_action(observations, self._train_step, eval=True)[0]
-        return action * self.train_env.action_space.high
+    def _eval(self):
+        returns = 0
+        steps = 0
+        for _ in range(self.cfg.num_eval_episodes):
+            done = False
+            state = self.eval_env.reset()
+            while not done:
+                action = self.agent.get_action(state, self._train_step, eval=True)
+                next_state, _, done, info = self.eval_env.step(action)
+                state = next_state
 
-    def evaluate(self, episode=None):
-        if episode is None:
-            episode = self.cfg.test_episode
-        logs_path = Path(self.cfg.save_dir)
-        agent_models = natsorted(logs_path.glob('agents/*.pt'), key=str)
+            returns += info["episode"]["r"]
+            steps += info["episode"]["l"]
 
-        for log_ep, agent_path in enumerate(agent_models):
-            if episode > -1 and log_ep != episode:
-                continue
-            elif episode == -1 and log_ep not in [4, 9, 19, 34, 49]:
-                continue
-
-            print('Evaluating', agent_path)
-            self.agent.load_save_dict(torch.load(agent_path))
-            # Target position for evaluation
-            targets_pos = args2target(self.train_env, self.cfg.target_pos)
-            # Log eval data
-            csv_path = logs_path / 'eval' / f"history_{agent_path.stem}.csv"
-            csv_path.parent.mkdir(exist_ok=True)
-            self.train_env._data_store.store_path = csv_path
-            self.train_env.init_store()
-            self.train_env.set_episode(log_ep)
-
-            # Iterate over goal position
-            for tpos in targets_pos:
-                self._eval(tpos)
-        self.train_env.close()
-
-    def _eval(self, target_pos=None):
-        self.train_env.set_eval()
-
-        ep_reward, ep_steps, elapsed_time = evaluate_agent(
-            self._agent_select_action,
-            self.train_env,
-            self.cfg.num_eval_episodes,
-            self.cfg.num_eval_steps,
-            target_pos)
+            print(
+                "EVAL Episode: {}, total numsteps: {}, return: {}".format(
+                    self._train_episode,
+                    self._train_step,
+                    round(info["episode"]["r"], 2),
+                )
+            )
 
         eval_metrics = dict()
-        eval_metrics["return"] = ep_reward
-        eval_metrics["length"] = ep_steps
+        eval_metrics["return"] = returns / self.cfg.num_eval_episodes
+        eval_metrics["length"] = steps / self.cfg.num_eval_episodes
 
         if (
             self.cfg.save_snapshot
-            and ep_reward >= self._best_eval_returns
+            and returns / self.cfg.num_eval_episodes >= self._best_eval_returns
         ):
             self.save_snapshot(best=True)
-            self._best_eval_returns = ep_reward
+            self._best_eval_returns = returns / self.cfg.num_eval_episodes
 
-        logger.record_step("eval_steps", ep_steps)
+        logger.record_step("env_steps", self._train_step)
         for k, v in eval_metrics.items():
             logger.record_tabular(k, v)
         logger.dump_tabular()
@@ -232,17 +195,15 @@ class DroneWorkspace:
         n_mc_cutoff = 350
 
         while final_mc_list.shape[0] < n_mc_eval:
-            o, i = self.eval_env.reset()
+            o = self.eval_env.reset()
             reward_list, obs_list, act_list = [], [], []
             r, d, ep_ret, ep_len = 0, False, 0, 0
-            t = False
 
-            while not d or not t:
+            while not d:
                 a = self.agent.get_action(o, self._train_step, True)
-                a *= self.train_env.action_space.high
                 obs_list.append(o)
                 act_list.append(a)
-                o, r, d, t, _ = self.train_env.step(a)
+                o, r, d, _ = self.eval_env.step(a)
                 ep_ret += r
                 ep_len += 1
                 reward_list.append(r)
@@ -269,6 +230,6 @@ class DroneWorkspace:
         if best:
             snapshot = Path(self.checkpoint_path) / "best.pt"
         else:
-            snapshot = Path(self.checkpoint_path) / (str(self._train_step) + ".pt")
+            snapshot = Path(self.checkpoint_path) / Path(str(self._train_step) + ".pt")
         save_dict = self.agent.get_save_dict()
         torch.save(save_dict, snapshot)

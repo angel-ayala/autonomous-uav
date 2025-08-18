@@ -1,18 +1,37 @@
+#environment
+time_limit: 60
+time_no_action: 5
+frame_skip: 6
+frame_stack: 1
+goal_threshold: 0.25
+init_altitude: 1.
+altitude_limits: [0.25, 2.]
+target_pos: null
+target_dim: [0.05, 0.02]
+zone_steps: 0
+is_pixels: false
+is_vector: true
+add_target_pos: false
+add_target_dist: false
+add_target_dim: false
+add_action: false
+uav_data: ['imu', 'gyro', 'gps', 'gps_vel', 'target_sensors']
+
 #common
 agent: 'alm'
 device: 'cuda'
 seed: 1
 
 #benchmark
-benchmark: 'gym'
-id: 'Humanoid-v2' # ("HalfCheetah-v2", "Humanoid-v2", "Ant-v2", "Walker2d-v2", "Hopper-v2")
+benchmark: 'gym-drone'
+id: 'CrazyflieEnvContinuous-v0' # ("HalfCheetah-v2", "Humanoid-v2", "Ant-v2", "Walker2d-v2", "Hopper-v2")
 distraction: 0
 scale: 0.1
 
 #data 
-num_train_steps: 500000
-explore_steps: 5000
-max_episode_steps: 1000
+num_train_steps: 450000
+explore_steps: 2048
+max_episode_steps: 9000
 env_buffer_size: 100000 # humanoid-v2 will be automatically changed to 1e6
 batch_size: 512
 seq_len: 1
@@ -51,8 +70,11 @@ eval_bias: False
 eval_bias_interval: 500
 
 #evaluation
-eval_episode_interval: 10000
+eval_episode_interval: 450000
 num_eval_episodes: 10
+num_eval_steps: 60
+test_episode: -1
+test_run_name: "debug"
 
 #logging
 debug: false
@@ -61,7 +83,7 @@ log_interval: 500
 
 #saving
 save_snapshot: True
-save_snapshot_interval: 10000
+save_snapshot_interval: 9000
 
 hydra:  
   output_subdir: null  
