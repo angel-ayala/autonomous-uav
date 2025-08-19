@@ -1,6 +1,6 @@
-import gym
-from gym.envs.mujoco import mujoco_env
-from gym import utils
+import gymnasium as gym
+from gymnasium.envs.mujoco import mujoco_env
+from gymnasium import utils
 import matplotlib.pyplot as plt
 from matplotlib import animation
 import numpy as np

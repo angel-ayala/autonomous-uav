@@ -34,11 +34,11 @@ class MujocoWorkspace:
         self._explore()
         self._eval()
 
-        state, done, episode_start_time = self.train_env.reset(), False, time.time()
+        (state, info), done, episode_start_time = self.train_env.reset(), False, time.time()
 
         for _ in range(1, self.cfg.num_train_steps - self.cfg.explore_steps + 1):
             action = self.agent.get_action(state, self._train_step)
-            next_state, reward, done, info = self.train_env.step(action)
+            next_state, reward, done, truncated, info = self.train_env.step(action)
             self._train_step += 1
 
             self.agent.env_buffer.push(
@@ -62,13 +62,13 @@ class MujocoWorkspace:
             ):
                 self.save_snapshot()
 
-            if done:
+            if done or truncated:
                 self._train_episode += 1
                 print(
-                    "TRAIN Episode: {}, total numsteps: {}, return: {}".format(
+                    "TRAIN Episode: {}, total numsteps: {}, return: {:.2f}".format(
                         self._train_episode,
                         self._train_step,
-                        round(info["episode"]["r"], 2),
+                        round(info["episode"]["r"][-1], 2),
                     )
                 )
                 episode_metrics = dict()
@@ -83,7 +83,7 @@ class MujocoWorkspace:
                     logger.record_tabular(k, v)
                 logger.dump_tabular()
 
-                state, done, episode_start_time = (
+                (state, info), done, episode_start_time = (
                     self.train_env.reset(),
                     False,
                     time.time(),
@@ -94,11 +94,11 @@ class MujocoWorkspace:
         self.train_env.close()
 
     def _explore(self):
-        state, done = self.train_env.reset(), False
+        (state, info), done = self.train_env.reset(), False
 
         for _ in range(1, self.cfg.explore_steps):
             action = self.train_env.action_space.sample()
-            next_state, reward, done, info = self.train_env.step(action)
+            next_state, reward, done, truncated, info = self.train_env.step(action)
             self.agent.env_buffer.push(
                 (
                     state,
@@ -109,8 +109,8 @@ class MujocoWorkspace:
                 )
             )
 
-            if done:
-                state, done = self.train_env.reset(), False
+            if done or truncated:
+                (state, info), done = self.train_env.reset(), False
             else:
                 state = next_state
 
@@ -119,20 +119,21 @@ class MujocoWorkspace:
         steps = 0
         for _ in range(self.cfg.num_eval_episodes):
             done = False
-            state = self.eval_env.reset()
+            (state, info) = self.eval_env.reset()
             while not done:
                 action = self.agent.get_action(state, self._train_step, eval=True)
-                next_state, _, done, info = self.eval_env.step(action)
+                next_state, _, done, truncated, info = self.eval_env.step(action)
                 state = next_state
+                done = done or truncated
 
-            returns += info["episode"]["r"]
-            steps += info["episode"]["l"]
+            returns += info["episode"]["r"][-1]
+            steps += info["episode"]["l"][-1]
 
             print(
-                "EVAL Episode: {}, total numsteps: {}, return: {}".format(
+                "EVAL Episode: {}, total numsteps: {}, return: {:.2f}".format(
                     self._train_episode,
                     self._train_step,
-                    round(info["episode"]["r"], 2),
+                    round(info["episode"]["r"][-1], 2),
                 )
             )
 
@@ -155,7 +156,7 @@ class MujocoWorkspace:
     def _render_episodes(self, record):
         frames = []
         done = False
-        state = self.eval_env.reset()
+        (state, info) = self.eval_env.reset()
         while not done:
             action = self.agent.get_action(state, self._train_step, True)
             next_state, _, done, info = self.eval_env.step(action)
