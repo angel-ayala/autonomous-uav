@@ -12,18 +12,20 @@ from stable_baselines3.sac.policies import SACPolicy, CnnPolicy, MultiInputPolic
 
 from sb3_srl.sac_srl import SRLSACPolicy, SRLSAC
 
-from utils import (
+from utils.agent import (
     args2ae_config,
-    args2env_params,
-    instance_env,
     iterate_agents_evaluation,
     load_json_dict,
-    parse_crazyflie_env_args,
     parse_memory_args,
     parse_srl_args,
     parse_utils_args
 )
 
+from utils.env_drone import (
+    args2env_params,
+    instance_env,
+    parse_crazyflie_env_args
+)
 
 def parse_eval_args(parser):
     arg_eval = parser.add_argument_group('Evaluation')

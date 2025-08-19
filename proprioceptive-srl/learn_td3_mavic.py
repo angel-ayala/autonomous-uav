@@ -14,18 +14,21 @@ from stable_baselines3.td3.policies import TD3Policy, CnnPolicy, MultiInputPolic
 
 from sb3_srl.td3_srl import SRLTD3Policy, SRLTD3
 
-from utils import (
-    DroneEnvMonitor,
-    DroneExperimentCallback,
+from utils.agent import (
     args2ae_config,
-    args2env_params,
     args2logpath,
-    instance_env,
-    parse_mavic_env_args,
     parse_memory_args,
     parse_srl_args,
     parse_training_args,
     parse_utils_args
+)
+
+from utils.env_drone import (
+    DroneEnvMonitor,
+    DroneExperimentCallback,
+    args2env_params,
+    instance_env,
+    parse_mavic_env_args
 )
 
 

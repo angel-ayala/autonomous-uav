@@ -7,10 +7,12 @@ Created on Thu Feb  6 12:45:59 2025
 """
 import argparse
 import numpy as np
+import gymnasium as gym
 
 from stable_baselines3 import TD3
 from stable_baselines3.common.noise import NormalActionNoise
 from stable_baselines3.td3.policies import TD3Policy, CnnPolicy, MultiInputPolicy
+from stable_baselines3.common.callbacks import CheckpointCallback, EvalCallback
 
 from sb3_srl.td3_srl import SRLTD3Policy, SRLTD3
 
@@ -19,17 +21,9 @@ from utils.agent import (
     args2logpath,
     parse_memory_args,
     parse_srl_args,
-    parse_training_args,
     parse_utils_args
 )
-
-from utils.env_drone import (
-    DroneEnvMonitor,
-    DroneExperimentCallback,
-    args2env_params,
-    instance_env,
-    parse_crazyflie_env_args
-)
+from utils.env_mujoco import get_env, parse_training_args
 
 
 def parse_agent_args(parser):
@@ -56,8 +50,6 @@ def parse_agent_args(parser):
 def parse_args():
     # Argument parser
     parser = argparse.ArgumentParser()
-
-    parse_crazyflie_env_args(parser)
     parse_agent_args(parser)
     parse_memory_args(parser)
     parse_srl_args(parser)
@@ -69,13 +61,14 @@ def parse_args():
 
 if __name__ == '__main__':
     args = parse_args()
-    # th.manual_seed(args.seed)
-    # np.random.seed(args.seed)
-    env_params = args2env_params(args)
 
     # Environment
-    environment_name = 'webots_drone:webots_drone/CrazyflieEnvContinuous-v0'
-    env = instance_env(environment_name, env_params, seed=args.seed)
+    env = get_env(args.environment_id)
+
+    env_params = {
+        'action_shape': env.action_space.shape,
+        'state_shape': env.observation_space.shape,
+    }
 
     if args.is_srl:
         algo, policy = SRLTD3, SRLTD3Policy
@@ -96,25 +89,30 @@ if __name__ == '__main__':
                 policy = MultiInputPolicy
 
     # Output log path
-    log_path, exp_name, run_id = args2logpath(args, 'td3')
+    log_path, exp_name, run_id = args2logpath(args, 'td3', 'mujoco')
     outpath = f"{log_path}/{exp_name}_{run_id+1}"
 
-    # Experiment data log
-    env = DroneEnvMonitor(env, store_path=f"{outpath}/history_training.csv", n_sensors=4)
-
-    # Save a checkpoint every N steps
     agents_path = f"{outpath}/agents"
-    experiment_callback = DroneExperimentCallback(
-      env=env,
-      save_freq=args.eval_interval,
-      save_path=agents_path,
-      name_prefix="rl_model",
-      save_replay_buffer=False,
-      save_vecnormalize=False,
-      exp_args=args,
-      out_path=f"{outpath}/arguments.json",
-      memory_steps=args.memory_steps
+
+    checkpoint_callback = CheckpointCallback(
+        save_freq=args.eval_interval,
+        save_path=agents_path,
+        name_prefix="td3_mujoco_model",
+        save_replay_buffer=False,
+        save_vecnormalize=False,
     )
+
+    evaluation = EvalCallback(
+        get_env(args.environment_id),
+        n_eval_episodes=args.eval_episodes,
+        eval_freq=args.eval_interval,
+        log_path=f"{outpath}/evaluations",
+        best_model_save_path=agents_path,
+        deterministic=True,
+        render=False,
+        verbose=1,
+        warn=True,
+        )
 
     # Create action noise because TD3 and DDPG use a deterministic policy
     n_actions = env.action_space.shape[-1]
@@ -144,8 +142,9 @@ if __name__ == '__main__':
 
     # Train the agent
     model.learn(total_timesteps=(args.steps + args.memory_steps),
-                callback=experiment_callback,
+                callback=[checkpoint_callback, evaluation],
                 log_interval=4,
                 progress_bar=True,
                 tb_log_name=exp_name)
+
     model.save(f"{agents_path}/rl_model_final")
