@@ -5,9 +5,7 @@ Created on Tue Aug 19 16:32:40 2025
 
 @author: angel
 """
-from typing import Any, Callable, Union, Optional
-import os
-import warnings
+from typing import Any, Callable
 import numpy as np
 import gymnasium as gym
 from gymnasium import spaces
@@ -18,9 +16,7 @@ from gymnasium.core import (
     )
 
 
-from stable_baselines3.common.evaluation import evaluate_policy
-from stable_baselines3.common.callbacks import BaseCallback, EvalCallback
-from stable_baselines3.common.vec_env import DummyVecEnv, VecEnv, sync_envs_normalization
+from stable_baselines3.common.utils import get_latest_run_id
 
 
 def get_env(env_id: str, seed: int = 666):
@@ -30,7 +26,7 @@ def get_env(env_id: str, seed: int = 666):
         env = DtypeObservation(env, np.float32)
 
     env = gym.wrappers.RecordEpisodeStatistics(env)
-    env.seed(seed=seed)
+    # env.seed(seed=seed)
     env.observation_space.seed(seed)
     env.action_space.seed(seed)
     return env
@@ -51,6 +47,43 @@ def parse_training_args(parser):
     arg_training.add_argument('--eval-episodes', type=int, default=10,  # 1m at 25 frames
                               help='Number of evaluation steps.')
     return arg_training
+
+
+def args2logpath(args, algo, env_uav='cf'):
+    if args.logspath is None:
+        # Summary folder
+        outfolder = f"logs_{env_uav}"
+    else:
+        outfolder = args.logspath
+
+    path_suffix = ''
+    # method labels
+    if args.model_reconstruction:
+        path_suffix += '-rec'
+    if args.model_spr:
+        path_suffix += '-spr'
+    if args.model_reconstruction_dist:
+        path_suffix += '-drec'
+    if args.model_ispr:
+        path_suffix += '-ispr'
+    if args.model_i2spr:
+        path_suffix += '-i2spr'
+    if args.model_ispr_mumo:
+        path_suffix += '-ispr-custom'
+    if args.model_proprio:
+        path_suffix += '-proprio'
+    # extra labels
+    if args.introspection_lambda != 0.:
+        path_suffix += '-intr'
+    if args.joint_optimization:
+        path_suffix += '-joint'
+    if args.use_stochastic:
+        path_suffix += '-stch'
+    exp_name = f"{args.environment_id}-{algo}{path_suffix}"
+
+    latest_run_id = get_latest_run_id(outfolder, exp_name)
+
+    return outfolder, exp_name, latest_run_id
 
 
 class TransformObservation(

@@ -18,12 +18,12 @@ from sb3_srl.td3_srl import SRLTD3Policy, SRLTD3
 
 from utils.agent import (
     args2ae_config,
-    args2logpath,
     parse_memory_args,
     parse_srl_args,
     parse_utils_args
 )
-from utils.env_mujoco import get_env, parse_training_args
+
+from utils.env_mujoco import get_env, args2logpath, parse_training_args
 
 
 def parse_agent_args(parser):
@@ -83,10 +83,10 @@ if __name__ == '__main__':
     else:
         algo, policy = TD3, TD3Policy
         policy_args = None
-        if args.is_pixels:
-            policy = CnnPolicy
-            if args.is_vector:
-                policy = MultiInputPolicy
+        # if args.is_pixels:
+        #     policy = CnnPolicy
+        #     if args.is_vector:
+        #         policy = MultiInputPolicy
 
     # Output log path
     log_path, exp_name, run_id = args2logpath(args, 'td3', 'mujoco')
