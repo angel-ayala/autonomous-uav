@@ -114,6 +114,23 @@ class MujocoWorkspace:
             else:
                 state = next_state
 
+    def evaluate(self, episode=None):
+        if episode is None:
+            episode = self.cfg.test_episode
+        logs_path = Path(self.cfg.save_dir)
+        agent_models = natsorted(logs_path.glob('checkpoints/*.pt'), key=str)
+
+        for agent_path in agent_models:
+            if agent_path.stem == 'best':
+                continue
+            self._train_step = int(agent_path.stem)
+            self._train_episode = self._train_step // self.cfg.eval_episode_interval
+
+            print('Evaluating', agent_path)
+            self.agent.load_save_dict(torch.load(agent_path))
+            self._eval()
+        self.eval_env.close()
+
     def _eval(self):
         returns = 0
         steps = 0
@@ -136,10 +153,11 @@ class MujocoWorkspace:
                     round(info["episode"]["r"][-1], 2),
                 )
             )
-
-        eval_metrics = dict()
-        eval_metrics["return"] = returns / self.cfg.num_eval_episodes
-        eval_metrics["length"] = steps / self.cfg.num_eval_episodes
+            
+            logger.record_step("env_steps", self._train_step)
+            logger.record_tabular("return", info["episode"]["r"][-1])
+            logger.record_tabular("length", info["episode"]["l"][-1])
+            logger.dump_tabular()
 
         if (
             self.cfg.save_snapshot
@@ -147,11 +165,6 @@ class MujocoWorkspace:
         ):
             self.save_snapshot(best=True)
             self._best_eval_returns = returns / self.cfg.num_eval_episodes
-
-        logger.record_step("env_steps", self._train_step)
-        for k, v in eval_metrics.items():
-            logger.record_tabular(k, v)
-        logger.dump_tabular()
 
     def _render_episodes(self, record):
         frames = []

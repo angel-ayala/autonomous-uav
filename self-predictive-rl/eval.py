@@ -18,7 +18,9 @@ warnings.simplefilter("ignore", UserWarning)
 
 @hydra.main(config_path="cfgs", config_name="config", version_base=None)
 def main(cfg: DictConfig):
-    if cfg.benchmark == "gym-drone":
+    if cfg.benchmark == "gym":
+        from workspaces.mujoco_workspace import MujocoWorkspace as W
+    elif cfg.benchmark == "gym-drone":
         from workspaces.drone_workspace import DroneWorkspace as W
     else:
         raise NotImplementedError
@@ -35,10 +37,9 @@ def main(cfg: DictConfig):
         cfg.save_dir = "debug"
         format_strs.extend(["stdout", "log"])  # logger.log
 
-    log_path = os.path.join(cfg.save_dir, env_id, run_name)
+    log_path = os.path.join(cfg.save_dir, env_id, run_name, 'eval')
     logger.configure(dir=log_path, format_strs=format_strs, precision=4)
-    if not cfg.debug:
-        cfg.save_dir = log_path
+    cfg.save_dir = log_path  # for saving inside the experiment path
 
     existing_variants = {
         "alm-3": (False, False, False, False, "rkl", "ema", "v-1.0", 3),
