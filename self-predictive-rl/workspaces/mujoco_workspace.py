@@ -7,6 +7,7 @@ from pathlib import Path
 from utils.env_mujoco import save_frames_as_gif
 from utils import logger
 from workspaces.common import make_agent, make_env
+from natsort import natsorted
 
 
 class MujocoWorkspace:
@@ -90,7 +91,9 @@ class MujocoWorkspace:
                 )
             else:
                 state = next_state
-
+        # save a final version
+        if self.cfg.save_snapshot:
+            self.save_snapshot()
         self.train_env.close()
 
     def _explore(self):
@@ -117,7 +120,7 @@ class MujocoWorkspace:
     def evaluate(self, episode=None):
         if episode is None:
             episode = self.cfg.test_episode
-        logs_path = Path(self.cfg.save_dir)
+        logs_path = Path(self.cfg.save_dir).parent
         agent_models = natsorted(logs_path.glob('checkpoints/*.pt'), key=str)
 
         for agent_path in agent_models:
