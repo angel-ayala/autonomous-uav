@@ -16,6 +16,7 @@ add_target_dist: false
 add_target_dim: false
 add_action: false
 uav_data: ['imu', 'gyro', 'gps', 'gps_vel', 'target_sensors']
+normalize_obs: true
 
 #common
 agent: 'alm'
