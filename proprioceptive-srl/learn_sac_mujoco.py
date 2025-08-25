@@ -6,11 +6,10 @@ Created on Thu Feb  6 12:45:59 2025
 @author: angel
 """
 import argparse
-import numpy as np
 
 from stable_baselines3 import SAC
 from stable_baselines3.sac.policies import SACPolicy, CnnPolicy, MultiInputPolicy
-from stable_baselines3.common.callbacks import CheckpointCallback, EvalCallback
+from stable_baselines3.common.callbacks import CheckpointCallback
 
 from sb3_srl.sac_srl import SRLSACPolicy, SRLSAC
 
@@ -21,13 +20,20 @@ from utils.agent import (
     parse_utils_args
 )
 
-from utils.env_mujoco import get_env, args2logpath, parse_training_args
+from utils.env_mujoco import (
+    get_env,
+    args2logpath,
+    parse_training_args,
+    CustomEvalCallback
+)
 
 
 def parse_agent_args(parser):
     arg_agent = parser.add_argument_group('Agent')
     arg_agent.add_argument("--lr", type=float, default=1e-3,
                            help='Critic function Adam learning rate.')
+    arg_agent.add_argument("--model-hidden-dim", type=int, default=256,
+                           help='Actor Critic models hidden units.')
     arg_agent.add_argument("--tau", type=float, default=0.005,
                            help='Soft target update \tau.')
     arg_agent.add_argument("--exploration-noise", type=float, default=0.1,
@@ -70,6 +76,7 @@ if __name__ == '__main__':
         ae_config = args2ae_config(args, env_params)
         # Policy args
         policy_args = {
+            'net_arch': [args.model_hidden_dim, args.model_hidden_dim],
             'ae_config': ae_config,
             'encoder_tau': args.encoder_tau
             }
@@ -95,7 +102,7 @@ if __name__ == '__main__':
         save_vecnormalize=False,
     )
 
-    evaluation = EvalCallback(
+    evaluation = CustomEvalCallback(
         get_env(args.environment_id),
         n_eval_episodes=args.eval_episodes,
         eval_freq=args.eval_interval,
@@ -104,7 +111,9 @@ if __name__ == '__main__':
         deterministic=True,
         render=False,
         verbose=1,
-        warn=True,
+        warn=false,
+        args_exp=args,
+        args_path=f"{outpath}/arguments.json"
         )
 
     # Create RL model
