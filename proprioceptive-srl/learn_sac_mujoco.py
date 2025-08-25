@@ -111,7 +111,7 @@ if __name__ == '__main__':
         deterministic=True,
         render=False,
         verbose=1,
-        warn=false,
+        warn=False,
         args_exp=args,
         args_path=f"{outpath}/arguments.json"
         )
