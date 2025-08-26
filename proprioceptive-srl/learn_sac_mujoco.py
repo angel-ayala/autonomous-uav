@@ -30,14 +30,12 @@ from utils.env_mujoco import (
 
 def parse_agent_args(parser):
     arg_agent = parser.add_argument_group('Agent')
-    arg_agent.add_argument("--lr", type=float, default=1e-3,
+    arg_agent.add_argument("--lr", type=float, default=3e-4,
                            help='Critic function Adam learning rate.')
     arg_agent.add_argument("--model-hidden-dim", type=int, default=256,
                            help='Actor Critic models hidden units.')
     arg_agent.add_argument("--tau", type=float, default=0.005,
                            help='Soft target update \tau.')
-    arg_agent.add_argument("--exploration-noise", type=float, default=0.1,
-                           help='Action noise during learning.')
     arg_agent.add_argument("--discount-factor", type=float, default=0.99,
                            help='Discount factor \gamma.')
     arg_agent.add_argument("--train-freq", type=int, default=1,

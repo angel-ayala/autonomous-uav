@@ -42,7 +42,7 @@ class DroneWorkspace:
         self._explore()
         self.train_env.init_store()
         self.train_env.set_learning()
-        self.train_env.set_episode()
+        self.train_env.new_episode()
 
         state, info = self.train_env.reset()
         done, episode_start_time = False, time.time()
@@ -77,7 +77,7 @@ class DroneWorkspace:
                 and (self._train_step) % self.cfg.save_snapshot_interval == 0
             ):
                 self.save_snapshot()
-                self.train_env.set_episode()
+                self.train_env.new_episode()
                 truncated = True
 
             if done or truncated:
@@ -156,7 +156,7 @@ class DroneWorkspace:
             csv_path.parent.mkdir(exist_ok=True)
             self.train_env._data_store.store_path = csv_path
             self.train_env.init_store()
-            self.train_env.set_episode(log_ep)
+            self.train_env.new_episode(log_ep)
 
             # Iterate over goal position
             for tpos in targets_pos:
