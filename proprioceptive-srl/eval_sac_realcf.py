@@ -15,7 +15,6 @@ from sb3_srl.sac_srl import SRLSACPolicy, SRLSAC
 
 from utils.agent import (
     args2ae_config,
-    iterate_agents_evaluation,
     load_json_dict,
     parse_memory_args,
     parse_srl_args,
@@ -25,7 +24,8 @@ from utils.agent import (
 from utils.env_drone import (
     args2env_params,
     instance_env,
-    parse_crazyflie_env_args
+    parse_crazyflie_env_args,
+    iterate_agents_evaluation
 )
 
 
