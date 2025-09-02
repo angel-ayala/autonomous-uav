@@ -35,7 +35,7 @@ def list_of_int(arg):
     return list(map(int, arg.split(',')))
 
 
-def list_of_targets(arg):
+def target_args(arg):
     if 'random' in arg or 'sample' in arg:
         return arg
     return list_of_int(arg)
@@ -95,7 +95,7 @@ def parse_mavic_env_args(parser):
 
 
 def parse_common_env_args(arg_env):
-    arg_env.add_argument("--target-pos", type=int, default=None,
+    arg_env.add_argument("--target-pos", type=target_args, default=None,
                          help='Cuadrant number for target position.')
     arg_env.add_argument("--is-pixels", action='store_true',
                          help='Whether if reconstruct an image-based observation.')
