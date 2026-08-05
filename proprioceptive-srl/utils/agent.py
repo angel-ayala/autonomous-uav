@@ -122,7 +122,7 @@ def args2ae_config(args, env_params):
         'joint_optimization': _args.get('joint_optimization', False),
         'introspection_lambda': _args.get('introspection_lambda', 0.),
         'is_pixels': _args.get('is_pixels', False),
-        'is_multimodal': _args.get('is_pixels', False) and _args.get('is_vector', False),
+        'is_multimodal': _args.get('is_pixels', False) and _args.get('is_vector', False)
         }
 
     if _args.get('model_reconstruction', False):
@@ -137,6 +137,13 @@ def args2ae_config(args, env_params):
         model_name = 'IntrospectiveInfoSPR'
     elif _args.get('model_proprio', False):
         model_name = 'Proprioceptive'
+        model_params['prop_mask'] = _args.get(
+            'prop_mask', # defaults based on gym-webots-drone env
+            [True, True, True, True, True, True,  # imu, gyro
+             False, False, False, False, False, False,  # gps_pos, gps_vel
+             False, False, False, False, False, False,  # target-sensing
+             True, True, True, True],  # motors
+        )
     else:
         raise ValueError('SRL model not recognized...')
     

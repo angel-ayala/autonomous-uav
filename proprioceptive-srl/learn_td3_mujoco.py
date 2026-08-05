@@ -26,7 +26,8 @@ from utils.env_mujoco import (
     get_env,
     args2logpath,
     parse_training_args,
-    CustomEvalCallback
+    CustomEvalCallback,
+    env_id2prop_mask
 )
 
 
@@ -69,7 +70,8 @@ if __name__ == '__main__':
     args = parse_args()
 
     # Environment
-    env = get_env(args.environment_id)
+    env_id = str(args.environment_id)
+    env = get_env(env_id)
 
     env_params = {
         'action_shape': env.action_space.shape,
@@ -79,11 +81,13 @@ if __name__ == '__main__':
     if args.is_srl:
         algo, policy = SRLTD3, SRLTD3Policy
         # Autoencoder parameters
-        ae_config = args2ae_config(args, env_params)
+        (ae_model, ae_params) = args2ae_config(args, env_params)
+        if args.model_proprio:
+            ae_params['prop_mask'] = env_id2prop_mask(env_id)
         # Policy args
         policy_args = {
             'net_arch': [args.model_hidden_dim, args.model_hidden_dim],
-            'ae_config': ae_config,
+            'ae_config': (ae_model, ae_params),
             'encoder_tau': args.encoder_tau
             }
     else:

@@ -445,7 +445,7 @@ def plot_performance_profile(algorithms, rewards_dict, alg_norm='SAC', figsize=(
     fig, ax = plt.subplots(ncols=1, figsize=figsize)
     rly_plot.plot_performance_profiles(
       distributions, score_thresholds, performance_profile_cis=distributions_cis,
-      colors=dict(zip(algorithms, sns.color_palette('colorblind'))),
+      colors=dict(zip(algorithms, sns.color_palette('colorblind', n_colors=len(algorithms)))),
       xlabel=fr'Max-{alg_norm} Normalized Score $(\tau)$', ax=ax)
     ax.legend()
     return fig, ax

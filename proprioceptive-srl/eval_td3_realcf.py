@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+# python eval_td3_realcf.py --logspath logs/td3_3 --seed 202501 --episode 0 --eval-episode 1 --target-pos 1,8,23
 """
 Created on Tue Nov 14 20:33:17 2023
 

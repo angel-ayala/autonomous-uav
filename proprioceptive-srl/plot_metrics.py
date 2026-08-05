@@ -133,13 +133,15 @@ for p in base_path.iterdir():
     #     continue
     # if '-' in folder_name:
     #     continue
-    if 'dqn' in folder_name:
-        continue
-    if 'ispr-joint-' not in folder_name:
+    # if 'dqn' in folder_name:
+    #     continue
+    # if 'ispr-joint-stch' not in folder_name:
     # if 'proprio-joint' not in folder_name:
-        continue
+        # continue
     # if 'ispr-joint-stch' not in folder_name:
     #     continue
+    if 'ispr' not in folder_name:
+        continue
     # if 'sac' in str(p):  # filter SAC
     # if 'td3' in str(p):  # filter TD3
     # if ('spr' in folder_name or 'alm' in folder_name) and not 'ispr' in folder_name:  # filter others proposal
@@ -174,6 +176,22 @@ for exp_path in exp_paths:
         algo_key = exp_data.alg_name.lower().replace('-', '_') + _ksuffix
 
     # proposals results
+    if 'ispr' in exp_path.name:
+        exp_data.alg_name = exp_data.alg_name.replace('ISPR', 'AmelPred')
+        if 'stch' in exp_path.name:
+            exp_data.alg_name = exp_data.alg_name.replace('-STCH', 'Sto')
+        else:
+            exp_data.alg_name += 'Det'
+
+    if 'proprio' in exp_path.name:
+        exp_data.alg_name = exp_data.alg_name.replace('PROPRIO', 'AmelPred')        
+        if 'stch' in exp_path.name:
+            exp_data.alg_name = exp_data.alg_name.replace('-STCH', 'Sto')
+        else:
+            exp_data.alg_name += 'Det'
+        exp_data.alg_name += '-APE'
+
+
     exp_data.alg_name += _suffix
     methods[algo_key] = exp_data.alg_name
     # set (ours) in label
@@ -245,23 +263,23 @@ algos_grp = {
     # 'comparison': [methods[k] for k in ['dqn_rec', 'sac_rec', 'td3_rec']],
 
     # sensor-based
-    # 'vanilla_tc': [methods[k] for k in ['dqn', 'dqn_tc', 'sac', 'sac_tc', 'td3', 'td3_tc']],
+    # # 'vanilla_tc': [methods[k] for k in ['dqn', 'dqn_tc', 'sac', 'sac_tc', 'td3', 'td3_tc']],
     # 'vanilla': [methods[k] for k in ['dqn', 'sac', 'td3']],
     # 'DQN': [methods[k] for k in ['dqn', 'dqn_ispr', 'dqn_ispr_stch']],
     # 'TD3': [methods[k] for k in ['td3', 'td3_ispr', 'td3_ispr_stch']],
     # 'SAC': [methods[k] for k in ['sac', 'sac_ispr', 'sac_ispr_stch']],
-    # 'ISPR': [methods[k] for k in ['dqn_ispr', 'sac_ispr', 'td3_ispr']],
-    # 'ISPR-STCH': [methods[k] for k in ['dqn_ispr_stch', 'sac_ispr_stch', 'td3_ispr_stch']],
+    # 'AmelPredDet': [methods[k] for k in ['dqn_ispr', 'sac_ispr', 'td3_ispr']],
+    # 'AmelPredSto': [methods[k] for k in ['dqn_ispr_stch', 'sac_ispr_stch', 'td3_ispr_stch']],
     # 'SOTA': [methods[k] for k in ['sac', 'td3', 'ni_et_al', 'sac_spr', 'sac_ispr_stch', 'td3_spr', 'td3_ispr_stch']],
-    
+
     # proprioceptive
     # 'vanilla_ts': [methods[k] for k in ['sac', 'sac_ts', 'td3', 'td3_ts']],
-    'ISPR_ts': [methods[k] for k in ['sac', 'sac_ispr_stch', 'sac_ispr_stch_ts',
-                                     'td3', 'td3_ispr_stch', 'td3_ispr_stch_ts']],
-    # 'vanilla': [methods[k] for k in ['sac', 'td3']],
-    # 'SAC': [methods[k] for k in ['sac', 'sac_ispr_stch', 'sac_proprio_stch', 'sac_ispr_stch_ts']],
-    # 'TD3': [methods[k] for k in ['td3', 'td3_proprio', 'td3_proprio_stch', 'td3_ispr_stch_ts']],
-    
+    'AmelPredSto_ts': [methods[k] for k in ['sac', 'sac_ispr_stch', 'sac_ispr_stch_ts',
+                                            'td3', 'td3_ispr_stch', 'td3_ispr_stch_ts']],
+    'comparison': [methods[k] for k in ['sac_ispr_stch_ts', 'sac_proprio_stch', 'td3_ispr_stch_ts', 'td3_proprio_stch']],
+    'SAC': [methods[k] for k in ['sac', 'sac_ispr_stch', 'sac_proprio_stch', 'sac_ispr_stch_ts']],
+    'TD3': [methods[k] for k in ['td3', 'td3_proprio', 'td3_proprio_stch', 'td3_ispr_stch_ts']],
+
     }
 
 # %% Navigation metrics
@@ -331,10 +349,10 @@ alg_norm = 'TD3'
 # grp_key = 'sota'
 # algos = algos_grp['vanilla_ts']
 # grp_key = 'vanilla_ts'
-algos = algos_grp['ISPR_ts']
-grp_key = 'ISPR_ts'
-# algos = algos_grp['SAC'] + algos_grp['TD3']
-# grp_key = 'comparison'
+# algos = algos_grp['AmelPredSto_ts']
+# grp_key = 'AmelPredSto_ts'
+algos = algos_grp['SAC'] + algos_grp['TD3']
+grp_key = 'comparison'
 
 metric2plot = ['Median', 'IQM', 'Mean', 'Optimality Gap']
 fig, axes = plot_aggregated_metrics(algos, rewards_tpos, alg_norm, metric2plot)
@@ -403,13 +421,13 @@ algos = list(rewards_tpos.keys())
 #     #     (methods['dqn_rec'], 'DQN'),
 #     #     ],
 # }
-# # Target sensing
+# Target sensing
 # algos_pairs = {
-#     'vanilla_tc': [
-#         ('TD3', methods['td3_tc']),
-#         ('SAC', methods['sac_tc']),
-#         ('DQN', methods['dqn_tc']),
-#         ],
+#     # 'vanilla_tc': [
+#     #     ('TD3', methods['td3_tc']),
+#     #     ('SAC', methods['sac_tc']),
+#     #     ('DQN', methods['dqn_tc']),
+#     #     ],
 #     'baseline': [
 #         ('TD3', 'SAC'),
 #         ('SAC', 'DQN'),
@@ -450,7 +468,7 @@ algos_pairs = {
     #     ('TD3', methods['td3_ts']),
     #     ('TD3', 'SAC'),
     #     ],
-    'ISPR_ts': [
+    'AmelPredSto_ts': [
         (methods['td3_ispr_stch'], methods['sac_ispr_stch']),
         (methods['td3_ispr_stch'], methods['td3_ispr_stch_ts']),
         (methods['sac_ispr_stch'], methods['sac_ispr_stch_ts']),
@@ -477,4 +495,3 @@ for pair_key, pair in algos_pairs.items():
     if out_path is not None:
         fig.savefig(out_path / f"rliable_probability_improvement_{pair_key}.pdf", bbox_inches='tight')
     fig.show()
-
