@@ -74,6 +74,12 @@ def parse_srl_args(parser):
                          help='Whether if use the Proprioceptive version model.')
     arg_srl.add_argument("--use-stochastic", action='store_true',
                          help='Whether if use the Stochastic version model.')
+    arg_srl.add_argument("--fusion-linear", action='store_true',
+                         help='Use 1D convolution for Proprioceptive fusion.')
+    arg_srl.add_argument("--fusion-attention", action='store_true',
+                         help='Use Attention-based Proprioceptive fusion.')
+    arg_srl.add_argument("--fusion-mamba", action='store_true',
+                         help='Use Mamba model for Proprioceptive fusion.')
     return arg_srl
 
 
@@ -144,6 +150,13 @@ def args2ae_config(args, env_params):
              False, False, False, False, False, False,  # target-sensing
              True, True, True, True],  # motors
         )
+        model_params['fusion'] = None
+        if _args.get('fusion_linear', False):
+            model_params['fusion'] = 'linear'
+        if _args.get('fusion_attention', False):
+            model_params['fusion'] = 'attention'
+        if _args.get('fusion_mamba', False):
+            model_params['fusion'] = 'mamba'
     else:
         raise ValueError('SRL model not recognized...')
     
