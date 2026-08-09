@@ -12,7 +12,7 @@ from stable_baselines3.dqn.policies import DQNPolicy, CnnPolicy, MultiInputPolic
 
 from sb3_srl.dqn_srl import SRLDQNPolicy, SRLDQN
 
-from utils.agent import (
+from sb3_srl.agent_utils import (
     args2ae_config,
     args2logpath,
     parse_memory_args,

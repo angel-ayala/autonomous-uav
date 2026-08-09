@@ -15,19 +15,21 @@ from stable_baselines3.common.callbacks import CheckpointCallback
 
 from sb3_srl.td3_srl import SRLTD3Policy, SRLTD3
 
-from utils.agent import (
+from sb3_srl.agent_utils import (
     args2ae_config,
+    args2logpath,
     parse_memory_args,
     parse_srl_args,
     parse_utils_args
 )
 
+from sb3_srl.mujoco_masks import mujoco_prop_mask
+
 from utils.env_mujoco import (
     get_env,
-    args2logpath,
-    parse_training_args,
-    CustomEvalCallback,
-    env_id2prop_mask
+    parse_mujoco_env_args,
+    mujoco_training_args,
+    CustomEvalCallback
 )
 
 
@@ -60,7 +62,8 @@ def parse_args():
     parse_agent_args(parser)
     parse_memory_args(parser)
     parse_srl_args(parser)
-    parse_training_args(parser)
+    mujoco_training_args(parser)
+    parse_mujoco_env_args(parser)
     parse_utils_args(parser)
 
     return parser.parse_args()
@@ -83,7 +86,7 @@ if __name__ == '__main__':
         # Autoencoder parameters
         (ae_model, ae_params) = args2ae_config(args, env_params)
         if args.model_proprio:
-            ae_params['prop_mask'] = env_id2prop_mask(env_id)
+            ae_params['prop_mask'] = mujoco_prop_mask(env_id)
         # Policy args
         policy_args = {
             'net_arch': [args.model_hidden_dim, args.model_hidden_dim],
@@ -99,7 +102,7 @@ if __name__ == '__main__':
         #         policy = MultiInputPolicy
 
     # Output log path
-    log_path, exp_name, run_id = args2logpath(args, 'td3', 'mujoco')
+    log_path, exp_name, run_id = args2logpath(args, 'td3', args.environment_id)
     outpath = f"{log_path}/{exp_name}_{run_id+1}"
 
     agents_path = f"{outpath}/agents"
@@ -107,7 +110,7 @@ if __name__ == '__main__':
     checkpoint_callback = CheckpointCallback(
         save_freq=args.eval_interval,
         save_path=agents_path,
-        name_prefix="td3_mujoco_model",
+        name_prefix="td3_model",
         save_replay_buffer=False,
         save_vecnormalize=False,
     )

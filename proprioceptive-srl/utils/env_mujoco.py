@@ -16,10 +16,30 @@ from gymnasium.core import (
     )
 
 
-from stable_baselines3.common.utils import get_latest_run_id
+from sb3_srl.agent_utils import parse_training_args
+from sb3_srl.agent_utils import save_dict_json
+
 from stable_baselines3.common.callbacks import EvalCallback
 
-from .agent import save_dict_json
+
+def mujoco_training_args(parser):
+    arg_training = parse_training_args(
+        parser,
+        steps=500000,
+        memory_steps=5000,
+        batch_size=512,
+        eval_interval=10000,
+        eval_steps=1000)
+    arg_training.add_argument('--eval-episodes', type=int, default=10,  # 1m at 25 frames
+                              help='Number of evaluation steps.')
+    return arg_training
+
+
+def parse_mujoco_env_args(parser):
+    arg_env = parser.add_argument_group('Environment')
+    arg_env.add_argument("--environment-id", type=str, default="Ant-v2",
+                         help='The Mujoco control environment name ID.')
+    return arg_env
 
 
 def get_env(env_id: str, seed: int = 666):
@@ -33,60 +53,6 @@ def get_env(env_id: str, seed: int = 666):
     env.observation_space.seed(seed)
     env.action_space.seed(seed)
     return env
-
-
-def parse_training_args(parser):
-    arg_training = parser.add_argument_group('Training')
-    arg_training.add_argument("--environment-id", type=str, default="Ant-v2",
-                              help='The Mujoco control environment name ID.')
-    arg_training.add_argument("--steps", type=int, default=500000,  # 25h at 25 frames
-                              help='Number of training steps.')
-    arg_training.add_argument('--memory-steps', type=int, default=5000,
-                              help='Number of steps for initial population of the Experience replay buffer.')
-    arg_training.add_argument("--batch-size", type=int, default=512,
-                              help='Minibatch size for training.')
-    arg_training.add_argument('--eval-interval', type=int, default=10000,  # 30m at 25 frames
-                              help='Steps interval for progress evaluation.')
-    arg_training.add_argument('--eval-episodes', type=int, default=10,  # 1m at 25 frames
-                              help='Number of evaluation steps.')
-    return arg_training
-
-
-def args2logpath(args, algo, env_uav='cf'):
-    if args.logspath is None:
-        # Summary folder
-        outfolder = f"logs_{env_uav}"
-    else:
-        outfolder = args.logspath
-
-    path_suffix = ''
-    # method labels
-    if args.model_reconstruction:
-        path_suffix += '-rec'
-    if args.model_spr:
-        path_suffix += '-spr'
-    if args.model_reconstruction_dist:
-        path_suffix += '-drec'
-    if args.model_ispr:
-        path_suffix += '-ispr'
-    if args.model_i2spr:
-        path_suffix += '-i2spr'
-    if args.model_ispr_mumo:
-        path_suffix += '-ispr-custom'
-    if args.model_proprio:
-        path_suffix += '-proprio'
-    # extra labels
-    if args.introspection_lambda != 0.:
-        path_suffix += '-intr'
-    if args.joint_optimization:
-        path_suffix += '-joint'
-    if args.use_stochastic:
-        path_suffix += '-stch'
-    exp_name = f"{args.environment_id}-{algo}{path_suffix}"
-
-    latest_run_id = get_latest_run_id(outfolder, exp_name)
-
-    return outfolder, exp_name, latest_run_id
 
 
 class TransformObservation(
@@ -225,86 +191,3 @@ class CustomEvalCallback(EvalCallback):
     def _init_callback(self) -> None:
         super()._init_callback()
         save_dict_json(self.args_exp, self.args_path)
-
-
-def env_id2prop_mask(env_id: str) -> Optional[List]:
-    prop_mask = None
-    env_lower = env_id.lower()
-
-    if "ant" in env_lower:
-        prop_mask = ANT
-    elif "cheeta" in env_lower:
-        prop_mask = CHEETAH
-    elif "hopper" in env_lower:
-        prop_mask = HOPPER
-
-    return prop_mask
-
-# Constant definitions of boolean proprioceptive masks for MuJoCo environments.
-# True = proprioceptive information, False = Exteroceptive information
-
-
-ANT = [
-    False,  # 0: z-coordinate of torso
-    False,  # 1: w-orientation
-    False,  # 2: x-orientation
-    False,  # 3: y-orientation
-    False,  # 4: z-orientation
-    True,   # 5: hip_1 angle
-    True,   # 6: ankle_1 angle
-    True,   # 7: hip_2 angle
-    True,   # 8: ankle_2 angle
-    True,   # 9: hip_3 angle
-    True,   # 10: ankle_3 angle
-    True,   # 11: hip_4 angle
-    True,   # 12: ankle_4 angle
-    False,  # 13: x-velocity
-    False,  # 14: y-velocity
-    False,  # 15: z-velocity
-    False,  # 16: x-angular velocity
-    False,  # 17: y-angular velocity
-    False,  # 18: z-angular velocity
-    True,   # 19: hip_1 angular velocity
-    True,   # 20: ankle_1 angular velocity
-    True,   # 21: hip_2 angular velocity
-    True,   # 22: ankle_2 angular velocity
-    True,   # 23: hip_3 angular velocity
-    True,   # 24: ankle_3 angular velocity
-    True,   # 25: hip_4 angular velocity
-    True,   # 26: ankle_4 angular velocity
-]
-
-CHEETAH = [
-    False,  # 0: z-coordinate of front tip (absolute position)
-    False,  # 1: angle of front tip (orientation, requires external reference)
-    True,   # 2: angle of back thigh (joint angle)
-    True,   # 3: angle of back shin (joint angle)
-    True,   # 4: angle of back foot (joint angle)
-    True,   # 5: angle of front thigh (joint angle)
-    True,   # 6: angle of front shin (joint angle)
-    True,   # 7: angle of front foot (joint angle)
-    False,  # 8: velocity of x-coordinate of front tip (requires external reference)
-    False,  # 9: velocity of z-coordinate of front tip (requires external reference)
-    False,  # 10: angular velocity of front tip (requires external reference)
-    True,   # 11: angular velocity of back thigh (joint angular velocity)
-    True,   # 12: angular velocity of back shin (joint angular velocity)
-    True,   # 13: angular velocity of back foot (joint angular velocity)
-    True,   # 14: angular velocity of front thigh (joint angular velocity)
-    True,   # 15: angular velocity of front shin (joint angular velocity)
-    True,   # 16: angular velocity of front foot (joint angular velocity)
-]
-
-HOPPER = [
-    False,  # 0: z-coordinate of torso (absolute position)
-    False,  # 1: angle of torso (orientation, requires external reference)
-    True,   # 2: angle of thigh joint (joint angle)
-    True,   # 3: angle of leg joint (joint angle)
-    True,   # 4: angle of foot joint (joint angle)
-    False,  # 5: velocity of x-coordinate of torso (requires external reference)
-    False,  # 6: velocity of z-coordinate of torso (requires external reference)
-    False,  # 7: angular velocity of torso (requires external reference)
-    True,   # 8: angular velocity of thigh joint (joint angular velocity)
-    True,   # 9: angular velocity of leg joint (joint angular velocity)
-    True,   # 10: angular velocity of foot joint (joint angular velocity)
-]
-

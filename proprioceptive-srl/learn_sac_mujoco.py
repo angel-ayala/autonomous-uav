@@ -13,17 +13,20 @@ from stable_baselines3.common.callbacks import CheckpointCallback
 
 from sb3_srl.sac_srl import SRLSACPolicy, SRLSAC
 
-from utils.agent import (
+from sb3_srl.agent_utils import (
     args2ae_config,
+    args2logpath,
     parse_memory_args,
     parse_srl_args,
     parse_utils_args
 )
 
+from sb3_srl.mujoco_masks import mujoco_prop_mask
+
 from utils.env_mujoco import (
     get_env,
-    args2logpath,
-    parse_training_args,
+    parse_mujoco_env_args,
+    mujoco_training_args,
     CustomEvalCallback
 )
 
@@ -51,7 +54,8 @@ def parse_args():
     parse_agent_args(parser)
     parse_memory_args(parser)
     parse_srl_args(parser)
-    parse_training_args(parser)
+    mujoco_training_args(parser)
+    parse_mujoco_env_args(parser)
     parse_utils_args(parser)
 
     return parser.parse_args()
@@ -61,7 +65,8 @@ if __name__ == '__main__':
     args = parse_args()
 
     # Environment
-    env = get_env(args.environment_id)
+    env_id = str(args.environment_id)
+    env = get_env(env_id)
 
     env_params = {
         'action_shape': env.action_space.shape,
@@ -71,11 +76,13 @@ if __name__ == '__main__':
     if args.is_srl:
         algo, policy = SRLSAC, SRLSACPolicy
         # Autoencoder parameters
-        ae_config = args2ae_config(args, env_params)
+        (ae_model, ae_params) = args2ae_config(args, env_params)
+        if args.model_proprio:
+            ae_params['prop_mask'] = mujoco_prop_mask(env_id)
         # Policy args
         policy_args = {
             'net_arch': [args.model_hidden_dim, args.model_hidden_dim],
-            'ae_config': ae_config,
+            'ae_config': (ae_model, ae_params),
             'encoder_tau': args.encoder_tau
             }
     else:
@@ -87,7 +94,7 @@ if __name__ == '__main__':
         #         policy = MultiInputPolicy
 
     # Output log path
-    log_path, exp_name, run_id = args2logpath(args, 'sac', 'mujoco')
+    log_path, exp_name, run_id = args2logpath(args, 'sac', args.environment_id)
     outpath = f"{log_path}/{exp_name}_{run_id+1}"
 
     agents_path = f"{outpath}/agents"
@@ -95,7 +102,7 @@ if __name__ == '__main__':
     checkpoint_callback = CheckpointCallback(
         save_freq=args.eval_interval,
         save_path=agents_path,
-        name_prefix="rl_model",
+        name_prefix="sac_model",
         save_replay_buffer=False,
         save_vecnormalize=False,
     )

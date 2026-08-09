@@ -14,7 +14,7 @@ from stable_baselines3.td3.policies import TD3Policy, CnnPolicy, MultiInputPolic
 
 from sb3_srl.td3_srl import SRLTD3Policy, SRLTD3
 
-from utils.agent import (
+from sb3_srl.agent_utils import (
     args2ae_config,
     args2logpath,
     parse_memory_args,
@@ -96,7 +96,7 @@ if __name__ == '__main__':
                 policy = MultiInputPolicy
 
     # Output log path
-    log_path, exp_name, run_id = args2logpath(args, 'td3')
+    log_path, exp_name, run_id = args2logpath(args, 'td3', 'crazyflie')
     outpath = f"{log_path}/{exp_name}_{run_id+1}"
 
     # Experiment data log

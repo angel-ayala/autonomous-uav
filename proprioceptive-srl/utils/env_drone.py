@@ -18,13 +18,15 @@ from natsort import natsorted
 from stable_baselines3.common.callbacks import CheckpointCallback
 from stable_baselines3.common.monitor import Monitor
 
+from sb3_srl.agent_utils import save_dict_json
+from sb3_srl.agent_utils import parse_training_args
+from sb3_srl.agent_utils import args2logpath
+
 from webots_drone.data import StoreStepData
 from webots_drone.envs.preprocessor import MultiModalObservation
 from webots_drone.envs.preprocessor import CustomVectorObservation
 from webots_drone.envs.preprocessor import UAV_DATA
 from webots_drone.stack import ObservationStack
-
-from .agent import save_dict_json
 
 
 def list_of_float(arg):
@@ -48,6 +50,29 @@ def uav_data_list(arg):
         if d in UAV_DATA:
             sel_data.append(d)
     return sel_data
+
+
+def drone_training_args(parser):
+    return parse_training_args(parser,
+                               steps=450000,
+                               memory_steps=2048,
+                               batch_size=128,
+                               eval_interval=9000,
+                               eval_steps=60)
+
+
+def drone_args2logpath(args, algo, env_name=None):
+    outfolder, exp_name, latest_run_id = args2logpath(args, algo, env_name)
+    # observation labels
+    if args.is_pixels and args.is_vector:
+        path_suffix = '-multi'
+    else:
+        if args.is_pixels:
+            path_suffix = '-pixel'
+        if args.is_vector:
+            path_suffix = '-vector'
+    exp_name = exp_name + path_suffix
+    return outfolder, exp_name, latest_run_id
 
 
 def parse_crazyflie_env_args(parser):

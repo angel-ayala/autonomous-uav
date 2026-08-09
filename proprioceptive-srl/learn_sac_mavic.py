@@ -12,7 +12,7 @@ from stable_baselines3.sac.policies import SACPolicy, CnnPolicy, MultiInputPolic
 
 from sb3_srl.sac_srl import SRLSACPolicy, SRLSAC
 
-from utils.agent import (
+from sb3_srl.agent_utils import (
     args2ae_config,
     args2logpath,
     parse_memory_args,
