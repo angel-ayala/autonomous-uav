@@ -16,14 +16,14 @@ from stable_baselines3.common.callbacks import CheckpointCallback
 from sb3_srl.td3_srl import SRLTD3Policy, SRLTD3
 
 from sb3_srl.agent_utils import (
-    args2ae_config,
+    args2srl_config,
     args2logpath,
     parse_memory_args,
     parse_srl_args,
     parse_utils_args
 )
 
-from sb3_srl.mujoco_masks import mujoco_prop_mask
+from sb3_srl.proprioceptive_masks import mujoco_prop_mask
 
 from utils.env_mujoco import (
     get_env,
@@ -84,14 +84,13 @@ if __name__ == '__main__':
     if args.is_srl:
         algo, policy = SRLTD3, SRLTD3Policy
         # Autoencoder parameters
-        (ae_model, ae_params) = args2ae_config(args, env_params)
         if args.model_proprio:
-            ae_params['prop_mask'] = mujoco_prop_mask(env_id)
+            env_params['prop_mask'] = mujoco_prop_mask(env_id)
+        srl_config = args2srl_config(args, env_params)
         # Policy args
         policy_args = {
             'net_arch': [args.model_hidden_dim, args.model_hidden_dim],
-            'ae_config': (ae_model, ae_params),
-            'encoder_tau': args.encoder_tau
+            'srl_config': srl_config
             }
     else:
         algo, policy = TD3, TD3Policy
