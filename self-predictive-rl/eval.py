@@ -1,5 +1,4 @@
 import os
-import time
 
 pid = str(os.getpid())
 if "SLURM_JOB_ID" in os.environ:
@@ -7,8 +6,8 @@ if "SLURM_JOB_ID" in os.environ:
 else:
     jobid = pid
 
-from utils import logger, system
-from omegaconf import DictConfig, OmegaConf
+from utils import logger
+from omegaconf import DictConfig
 import hydra
 import warnings
 
