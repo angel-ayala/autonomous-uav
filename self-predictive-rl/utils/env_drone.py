@@ -5,15 +5,15 @@ Created on Mon Mar 31 18:15:44 2025
 
 @author: angel
 """
+from typing import Callable, Optional, Union, List
+
 import sys
 import time
-import torch
 import json
 import numpy as np
-from typing import Any, Callable, Optional, SupportsFloat, Union, List
 from pathlib import Path
 import gymnasium as gym
-from gymnasium.core import ActType, ObsType
+from gymnasium.core import ActType #, ObsType
 
 from stable_baselines3.common.monitor import Monitor
 
@@ -87,8 +87,8 @@ def instance_drone_env(name='webots_drone:webots_drone/DroneEnvDiscrete-v0',
         'target_dim': env_params.get('target_dim', [.05, .02]),
         'is_pixels': env_params.get('is_pixels', False),
         }
-    if extra_params:
-        _env_params.update(extra_params)
+    # if extra_params:
+    #     _env_params.update(extra_params)
 
     if isinstance(_env_params['target_pos'], list):
         if len(_env_params['target_pos']) > 1:

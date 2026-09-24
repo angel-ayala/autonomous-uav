@@ -61,12 +61,13 @@ def make_env(cfg):
         return get_env(cfg), get_env(cfg)
 
     elif cfg.benchmark == "gym-drone":
+        from .env_drone import args2env_params, instance_drone_env
         # Environment
         environment_name = 'webots_drone:webots_drone/CrazyflieEnvContinuous-v0'
 
         def get_env(cfg):
-            env_params = utils.args2env_params(cfg)
-            env = utils.instance_drone_env(environment_name, env_params, seed=cfg.seed)
+            env_params = args2env_params(cfg)
+            env = instance_drone_env(environment_name, env_params, seed=cfg.seed)
             env.observation_space.seed(cfg.seed)
             env.action_space.seed(cfg.seed)
             logger.log(env.observation_space.shape, env.action_space)

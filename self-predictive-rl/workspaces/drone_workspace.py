@@ -5,6 +5,12 @@ import numpy as np
 from natsort import natsorted
 from pathlib import Path
 
+import importlib.util
+drone_env = importlib.util.find_spec("webots_drone")
+found = drone_env is not None
+if not found:
+    raise RuntimeError("webots_drone package was not found")
+
 from utils import logger
 from utils.env_drone import args2target
 from utils.env_drone import DroneEnvMonitor
