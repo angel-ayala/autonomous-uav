@@ -9,7 +9,6 @@ Created on Tue Aug 19 16:08:22 2025
 from typing import Any, Callable, Optional, List, SupportsFloat, Union
 from gymnasium.core import ActType, ObsType
 import sys
-import time
 import numpy as np
 import gymnasium as gym
 from pathlib import Path
@@ -27,6 +26,8 @@ from webots_drone.envs.preprocessor import MultiModalObservation
 from webots_drone.envs.preprocessor import CustomVectorObservation
 from webots_drone.envs.preprocessor import UAV_DATA
 from webots_drone.stack import ObservationStack
+
+from .agent import evaluate_agent
 
 
 def list_of_float(arg):
@@ -347,58 +348,6 @@ class DroneEnvMonitor(Monitor):
         self._data_store.init_store()
         self.export_env_data()
 
-def evaluate_agent(agent_select_action: Callable,
-                   env: gym.Env,
-                   n_episodes: int,
-                   n_steps: int,
-                   target_quadrant: int):
-    steps = []
-    rewards = []
-    times = []
-
-    for i in range(n_episodes):
-        timemark = time.time()
-        state, info = env.reset(target_pos=target_quadrant)
-        ep_reward = 0
-        ep_steps = 0
-        end = False
-
-        while not end:
-            action = agent_select_action(state)
-            next_state, reward, done, truncated, info = env.step(action)
-            end = done or truncated
-            ep_steps += 1
-            ep_reward += reward
-            state = next_state
-            prefix = f"Run {i+1:02d}/{n_episodes:02d}"
-            sys.stdout.write(f"\r{prefix} | Reward: {ep_reward:.4f} | "
-                             f"Length: {ep_steps}  ")
-            if ep_steps == n_steps or truncated:
-                end = True
-
-        elapsed_time = time.time() - timemark
-
-        steps.append(ep_steps)
-        rewards.append(ep_reward)
-        times.append(elapsed_time)
-
-    if isinstance(target_quadrant, int):
-        target_str = f"{target_quadrant:02d}"
-    elif isinstance(target_quadrant, np.ndarray):
-        target_str = str(target_quadrant)
-    else:
-        target_str = 'Random'
-    ttime = np.sum(times).round(3)
-    tsteps = np.mean(steps)
-    treward = np.mean(rewards).round(4)
-    sys.stdout.write(f"\r- Evaluated in {ttime:.3f} seconds | "
-                     f"Target Position {target_str} | "
-                     f"Mean reward: {treward:.4f} | "
-                     f"Mean lenght: {tsteps}\n")
-    sys.stdout.flush()
-
-    return ep_reward, ep_steps, elapsed_time
-
 
 def iterate_agents_evaluation(env, algorithm, args, log_args=None):
     logs_path = Path(args.logspath)
@@ -455,7 +404,27 @@ def iterate_agents_evaluation(env, algorithm, args, log_args=None):
         monitor_env.set_eval()
         monitor_env.new_episode(log_ep)
         # Iterate over goal position
-        for tpos in targets_pos:
-            evaluate_agent(action_selection, monitor_env, args.eval_episodes,
-                           args.eval_steps, tpos)
+        for target_quadrant in targets_pos:
+            rewards, steps, times = evaluate_agent(
+                action_selection,
+                lambda : monitor_env.reset(target_pos=target_quadrant),
+                monitor_env.step,
+                args.eval_steps,
+                args.eval_episodes
+            )
+
+            if isinstance(target_quadrant, int):
+                target_str = f"{target_quadrant:02d}"
+            elif isinstance(target_quadrant, np.ndarray):
+                target_str = str(target_quadrant)
+            else:
+                target_str = 'Random'
+            ttime = np.sum(times).round(3)
+            tsteps = np.mean(steps)
+            treward = np.mean(rewards).round(4)
+            sys.stdout.write(f"\r- Evaluated in {ttime:.3f} seconds | "
+                             f"Target Position {target_str} | "
+                             f"Mean reward: {treward:.4f} | "
+                             f"Mean lenght: {tsteps}\n")
+            sys.stdout.flush()
         monitor_env.close()

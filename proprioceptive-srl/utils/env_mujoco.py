@@ -5,7 +5,10 @@ Created on Tue Aug 19 16:32:40 2025
 
 @author: angel
 """
-from typing import Any, Callable, Optional, List
+from typing import Any, Callable
+from datetime import datetime
+import time
+import json
 import numpy as np
 import gymnasium as gym
 from gymnasium import spaces
@@ -14,12 +17,16 @@ from gymnasium.core import (
     ObsType,
     WrapperObsType
     )
-
+from pathlib import Path
+from natsort import natsorted
+import sys
 
 from sb3_srl.agent_utils import parse_training_args
 from sb3_srl.agent_utils import save_dict_json
 
 from stable_baselines3.common.callbacks import EvalCallback
+
+from .agent import evaluate_agent
 
 
 def mujoco_training_args(parser):
@@ -42,8 +49,8 @@ def parse_mujoco_env_args(parser):
     return arg_env
 
 
-def get_env(env_id: str, seed: int = 666):
-    env = gym.make(env_id)
+def get_env(env_id: str, seed: int = 666, render_mode=None):
+    env = gym.make(env_id, render_mode=render_mode)
 
     if env.observation_space.dtype == np.float64:
         env = DtypeObservation(env, np.float32)
@@ -191,3 +198,169 @@ class CustomEvalCallback(EvalCallback):
     def _init_callback(self) -> None:
         super()._init_callback()
         save_dict_json(self.args_exp, self.args_path)
+
+
+class EvaluationRecorder(gym.Wrapper):
+
+    def __init__(self, env, path):
+        super().__init__(env)
+
+        self.path = Path(path)
+        self.path.mkdir(parents=True, exist_ok=True)
+
+        self.evaluations = []
+        self.video_env = None
+
+    def start_video(self, name_prefix):
+        self.video_end()
+
+        self.video_env = gym.wrappers.RecordVideo(
+            self.env,
+            video_folder=str(self.path),
+            name_prefix=name_prefix,
+            episode_trigger=lambda _: True,
+            video_length=1000,
+            disable_logger=True
+        )
+
+    def reset(self, **kwargs):
+        if self.video_env is not None:
+            return self.video_env.reset(**kwargs)
+        else:
+            return self.env.reset(**kwargs)
+
+    def step(self, action):
+        if self.video_env is not None:
+            return self.video_env.step(action)
+        else:
+            return self.env.step(action)
+
+    def video_end(self, timeout=10.0):
+        if self.video_env is None:
+            return
+    
+        before = set(self.path.iterdir())
+    
+        video_env = self.video_env
+        self.video_env = None
+    
+        video_env.close()
+    
+        deadline = time.monotonic() + timeout
+    
+        while time.monotonic() < deadline:
+            files = [
+                p for p in self.path.glob("*.mp4")
+                if p not in before
+            ]
+    
+            if files:
+                sizes = [p.stat().st_size for p in files]
+    
+                time.sleep(0.1)
+    
+                new_sizes = [p.stat().st_size for p in files]
+    
+                if sizes == new_sizes and all(size > 0 for size in new_sizes):
+                    return
+    
+            time.sleep(0.1)
+
+    def add_evaluation(
+        self,
+        agent_path,
+        episode,
+        rewards,
+        steps,
+        times,
+    ):
+        self.evaluations.append({
+            "agent": str(agent_path),
+            "episode": episode,
+            "mean_reward": float(np.mean(rewards)),
+            "mean_steps": float(np.mean(steps)),
+            "total_time": float(np.sum(times)),
+            "rewards": np.asarray(rewards).tolist(),
+            "steps": np.asarray(steps).tolist(),
+            "times": np.asarray(times).tolist(),
+        })
+
+    def save(self):
+        with open(self.path / "evaluation.json", "w") as f:
+            json.dump(
+                {"evaluations": self.evaluations}, f, indent=2
+            )
+
+    def close(self):
+        self.video_end()
+        self.save()
+        self.env.close()
+
+
+def iterate_agents_evaluation(env, algorithm, args, log_args=None):
+    logs_path = Path(args.logspath)
+    agent_models = natsorted(logs_path.glob('agents/*_model_*'), key=str)
+    
+    # One directory for this complete evaluation session
+    session_id = datetime.now().strftime("%Y%m%d_%H%M%S")
+
+    if log_args is None or 'store_path' not in log_args:
+        out_path = logs_path / "eval" / session_id
+    else:
+        out_path = Path(log_args["store_path"]) / session_id
+    
+    recorder = EvaluationRecorder(env, out_path)
+
+    for log_ep, agent_path in enumerate(agent_models):
+        if args.episode > -1 and log_ep != args.episode:
+            continue
+        # custom agent episodes selection
+        elif args.episode == -1 and log_ep not in [5, 10, 20, 35, 50]:
+            continue
+
+        print('Loading', agent_path)
+        model = algorithm.load(agent_path)
+        def action_selection(observations):
+            observations = np.array(observations, dtype=np.float32)
+            if observations.shape[0] != 1:
+                observations = observations[np.newaxis, ...]
+
+            actions, states = model.predict(
+                observations,  # type: ignore[arg-type]
+                state=None,
+                episode_start=None,
+                deterministic=True,
+            )
+            return actions[0]
+            
+        if args.record:
+            recorder.start_video(f"{agent_path.stem}_{log_ep:03d}")
+
+        rewards, steps, times = evaluate_agent(
+            action_selection,
+            lambda : recorder.reset(),
+            recorder.step,
+            args.eval_steps,
+            args.eval_episodes
+        )
+
+        ttime = np.sum(times).round(3)
+        tsteps = np.mean(steps)
+        treward = np.mean(rewards).round(4)
+        sys.stdout.write(f"\r- Evaluated in {ttime:.3f} seconds | "
+                         f"Mean reward: {treward:.4f} | "
+                         f"Mean lenght: {tsteps}\n")
+        sys.stdout.flush()
+        
+        # Store this checkpoint's evaluation
+        recorder.add_evaluation(
+            agent_path,
+            log_ep,
+            rewards,
+            steps,
+            times,
+        )
+
+        recorder.save()
+
+    recorder.close()
