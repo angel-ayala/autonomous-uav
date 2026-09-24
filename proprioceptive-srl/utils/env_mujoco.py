@@ -219,7 +219,6 @@ class EvaluationRecorder(gym.Wrapper):
             video_folder=str(self.path),
             name_prefix=name_prefix,
             episode_trigger=lambda _: True,
-            video_length=1000,
             disable_logger=True
         )
 
