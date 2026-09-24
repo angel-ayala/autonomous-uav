@@ -12,7 +12,7 @@ DIST_HEADS=(--dist-bound --dist-bound-norm --dist-bound-logvar --dist-bound-logv
 
 for SEED in "${SEEDS[@]}"; do
   for DHEAD in "${DIST_HEADS[@]}"; do
-    echo "Running $SCRIPT: $ENV_NAME --seed $SEED ${REP_MODEL[@]} $REG"
+    echo "Running $SCRIPT: $ENV_NAME --seed $SEED ${REP_MODEL[@]} $DHEAD"
     python $SCRIPT --environment-id $ENV_NAME --seed $SEED --use-cuda "${REP_MODEL[@]}" $DHEAD
     sleep 2
 
