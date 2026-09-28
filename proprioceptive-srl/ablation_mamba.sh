@@ -8,17 +8,12 @@ SEEDS=(202601 202602 202603 202604 202605)
 SCRIPT=learn_td3_mujoco.py
 #SCRIPT=learn_sac_mujoco.py
 # variants
-SRL_MODEL=(--is-srl --joint-optimization)
+SRL_MODEL=(--is-srl --joint-optimization --use-mamba-dec)
 SRL_STO_MODEL=("${SRL_MODEL[@]}" --use-stochastic)
 # models
 MODELS=(--model-ispr --model-proprio)
 
 for SEED in "${SEEDS[@]}"; do
-  # Vanilla
-  echo "Running $SCRIPT: $ENV_NAME --seed $SEED"
-  python "$SCRIPT" --environment-id "$ENV_NAME" --seed "$SEED" --use-cuda
-  sleep 2
-
   for REP_MODEL in "${MODELS[@]}"; do
     # Deterministic
     echo "Running $ALGO: $ENV_NAME --seed $SEED $REP_MODEL ${SRL_MODEL[@]}"
